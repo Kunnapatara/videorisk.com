@@ -1,0 +1,2743 @@
+{
+  "users": {
+    "user_default": {
+      "id": "user_default",
+      "email": "creator@videorisk.com",
+      "plan": "creator",
+      "creditsRemaining": 324,
+      "creditsUsedTotal": 12,
+      "totalScansCount": 13,
+      "createdAt": "2026-10-08T02:17:59.047Z",
+      "stripeCustomerId": "cus_test_videorisk_123",
+      "subscriptionId": "sub_test_videorisk_456",
+      "subscriptionStatus": "canceled",
+      "passwordHash": "4f731406c403d9abf617d123ac074aecad8801ee3276208c340a1647c94e019b2648e38e857faf1e68d9d5c059fd42ee81af7096fcc6aba217221db7ae2cdb04",
+      "salt": "dab76f9da85c4bdf549382612540d054"
+    },
+    "user_pro": {
+      "id": "user_pro",
+      "email": "pro@videorisk.com",
+      "plan": "pro",
+      "creditsRemaining": 75,
+      "creditsUsedTotal": 0,
+      "totalScansCount": 0,
+      "createdAt": "2026-10-09T01:44:55.295Z",
+      "passwordHash": "9a91c6d0b2f3400a40842c4ccce67d455ce383df8b5865e932d527fdc24885d50c2b4b365a26dbdf7e50ea8660c7401ff82da0e4f17b1cbc9dd10657d822d74f",
+      "salt": "25ccba0f4d7a6514e578616b3c015726"
+    },
+    "user_free": {
+      "id": "user_free",
+      "email": "free@videorisk.com",
+      "plan": "free",
+      "creditsRemaining": 10,
+      "creditsUsedTotal": 0,
+      "totalScansCount": 0,
+      "createdAt": "2026-10-09T01:44:55.355Z",
+      "passwordHash": "10eb65ad648bbee2f32d49d1c8ee54623f6da89054de7e1e67d81bfde6bf82900a625d2e0ffb8c917e7f4e8da5cc7ce6a1ab618336817cff1767ff3bd40cbf32",
+      "salt": "5e54396027e09f9af6fb5907efde6916"
+    },
+    "user_1791510341496_7718d784": {
+      "id": "user_1791510341496_7718d784",
+      "email": "user_b_1791510341438@videorisk.com",
+      "plan": "free",
+      "creditsRemaining": 10,
+      "creditsUsedTotal": 0,
+      "totalScansCount": 0,
+      "createdAt": "2026-10-09T01:45:41.497Z",
+      "passwordHash": "76ec4f4be4df2a0106f1df46fcbc94668dcabd38c5156a2650cdc3f8fcd60573d66092177f6f29559d0d136c5d177caac77790cdb77dbdc5fbd9187e58be9eb8",
+      "salt": "a596267c2128a60d53d0d65dbf3feb53"
+    }
+  },
+  "sessions": {
+    "vr_sess_85cf3cc38081bed2a116a9528b4efdb1075be6cf24a7c6cfb1326043abfdba90": {
+      "token": "vr_sess_85cf3cc38081bed2a116a9528b4efdb1075be6cf24a7c6cfb1326043abfdba90",
+      "userId": "user_default",
+      "createdAt": "2026-10-09T01:45:41.425Z",
+      "expiresAt": "2026-11-08T01:45:41.425Z"
+    },
+    "vr_sess_eab1a617cebead98341027ff756f307d342b78c1ad4ecd4b82b9b5dc9d42190f": {
+      "token": "vr_sess_eab1a617cebead98341027ff756f307d342b78c1ad4ecd4b82b9b5dc9d42190f",
+      "userId": "user_1791510341496_7718d784",
+      "createdAt": "2026-10-09T01:45:41.498Z",
+      "expiresAt": "2026-11-08T01:45:41.498Z"
+    },
+    "vr_sess_dbd6740dfab411b9156788e0eff99759d8b58dcb7113e252feb2e7357d62a613": {
+      "token": "vr_sess_dbd6740dfab411b9156788e0eff99759d8b58dcb7113e252feb2e7357d62a613",
+      "userId": "user_pro",
+      "createdAt": "2026-10-09T01:45:41.529Z",
+      "expiresAt": "2026-11-08T01:45:41.529Z"
+    }
+  },
+  "scans": {
+    "scan_demo_1791425879047": {
+      "id": "scan_demo_1791425879047",
+      "userId": "user_default",
+      "videoTitle": "How I Built a Real Business (Uncommentated Clips & Montage)",
+      "videoDescription": "Compilation of business clips and stock footage showing business growth.",
+      "videoFilename": "Top10_Gaming_Montage_With_Clips.mp4",
+      "videoPath": "/app/applet/uploads/demo_1791425879047_Top10_Gaming_Montage_With_Clips.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 2,
+      "createdAt": "2026-10-08T02:17:59.047Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "Top10_Gaming_Montage_With_Clips.mp4",
+        "originalSize": 26,
+        "durationSeconds": 120,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/demo_1791425879047_Top10_Gaming_Montage_With_Clips.mp4",
+      "completedAt": "2026-10-08T02:18:01.387Z"
+    },
+    "scan_rescan_1791425881505": {
+      "id": "scan_rescan_1791425881505",
+      "userId": "user_default",
+      "videoTitle": "How I Built a Real Business (Uncommentated Clips & Montage) (Revised Cut)",
+      "videoDescription": "Compilation of business clips and stock footage showing business growth.",
+      "videoFilename": "Revised_Top10_Gaming_Montage_With_Clips.mp4",
+      "videoPath": "/app/applet/uploads/demo_rescan_1791425881505.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 2,
+      "createdAt": "2026-10-08T02:18:01.505Z",
+      "parentScanId": "scan_demo_1791425879047",
+      "isRescan": true,
+      "metadata": {
+        "filename": "Revised_Top10_Gaming_Montage_With_Clips.mp4",
+        "originalSize": 26,
+        "durationSeconds": 120,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/demo_rescan_1791425881505.mp4",
+      "completedAt": "2026-10-08T02:18:03.777Z"
+    },
+    "scan_1791426945284_xgf91": {
+      "id": "scan_1791426945284_xgf91",
+      "userId": "user_default",
+      "videoTitle": "corrupt_test.mp4",
+      "videoDescription": "",
+      "videoFilename": "corrupt_test.mp4",
+      "videoPath": "/app/applet/uploads/corrupt_test.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 2,
+      "createdAt": "2026-10-08T02:35:45.284Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "corrupt_test.mp4",
+        "originalSize": 21,
+        "durationSeconds": 120,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/corrupt_test.mp4",
+      "completedAt": "2026-10-08T02:35:47.578Z"
+    },
+    "scan_1791426947833_z0590": {
+      "id": "scan_1791426947833_z0590",
+      "userId": "user_default",
+      "videoTitle": "test_zero_credits.mp4",
+      "videoDescription": "",
+      "videoFilename": "test_zero_credits.mp4",
+      "videoPath": "/app/applet/uploads/corrupt_test.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 2,
+      "createdAt": "2026-10-08T02:35:47.833Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "test_zero_credits.mp4",
+        "originalSize": 21,
+        "durationSeconds": 120,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/corrupt_test.mp4",
+      "completedAt": "2026-10-08T02:35:50.174Z"
+    },
+    "scan_1791426947841_bx5l5": {
+      "id": "scan_1791426947841_bx5l5",
+      "userId": "user_default",
+      "videoTitle": "passwd.mp4",
+      "videoDescription": "",
+      "videoFilename": "passwd.mp4",
+      "videoPath": "/etc/passwd",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 2,
+      "createdAt": "2026-10-08T02:35:47.841Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "passwd.mp4",
+        "originalSize": 878,
+        "durationSeconds": 120,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/etc/passwd",
+      "completedAt": "2026-10-08T02:35:50.176Z"
+    },
+    "scan_1791427270758_na8u8": {
+      "id": "scan_1791427270758_na8u8",
+      "userId": "user_default",
+      "videoTitle": "fixture_1080p.mp4",
+      "videoDescription": "",
+      "videoFilename": "fixture_1080p.mp4",
+      "videoPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 1,
+      "createdAt": "2026-10-08T02:41:10.758Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "fixture_1080p.mp4",
+        "originalSize": 346889,
+        "durationSeconds": 10,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "completedAt": "2026-10-08T02:41:13.588Z"
+    },
+    "scan_1791427273795_tqt9n": {
+      "id": "scan_1791427273795_tqt9n",
+      "userId": "user_default",
+      "videoTitle": "fixture_4k.mp4",
+      "videoDescription": "",
+      "videoFilename": "fixture_4k.mp4",
+      "videoPath": "/app/applet/uploads/fixture_4k.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 1,
+      "createdAt": "2026-10-08T02:41:13.795Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "fixture_4k.mp4",
+        "originalSize": 356803,
+        "durationSeconds": 5,
+        "width": 3840,
+        "height": 2160,
+        "resolutionLabel": "4K Ultra HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": true
+      },
+      "proxyPath": "/app/applet/uploads/proxies/proxy_fixture_4k.mp4",
+      "completedAt": "2026-10-08T02:41:18.177Z"
+    },
+    "scan_1791427278375_5pfz2": {
+      "id": "scan_1791427278375_5pfz2",
+      "userId": "user_default",
+      "videoTitle": "fixture_silent.mp4",
+      "videoDescription": "",
+      "videoFilename": "fixture_silent.mp4",
+      "videoPath": "/app/applet/uploads/fixture_silent.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 1,
+      "createdAt": "2026-10-08T02:41:18.375Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "fixture_silent.mp4",
+        "originalSize": 77966,
+        "durationSeconds": 6,
+        "width": 1280,
+        "height": 720,
+        "resolutionLabel": "720p HD",
+        "fps": 25,
+        "hasAudio": false,
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/fixture_silent.mp4",
+      "completedAt": "2026-10-08T02:41:20.185Z"
+    },
+    "scan_1791427280400_5arzs": {
+      "id": "scan_1791427280400_5arzs",
+      "userId": "user_default",
+      "videoTitle": "fixture_corrupt.mp4",
+      "videoDescription": "",
+      "videoFilename": "fixture_corrupt.mp4",
+      "videoPath": "/app/applet/uploads/fixture_corrupt.mp4",
+      "scanMode": "standard",
+      "status": "FAILED",
+      "currentStage": "Media inspection",
+      "completedStages": [
+        "Upload"
+      ],
+      "creditsUsed": 0,
+      "createdAt": "2026-10-08T02:41:20.400Z",
+      "isRescan": false,
+      "error": "Failed to decode media file: Command failed: ffprobe -v error -show_entries format=duration,size,bit_rate:stream=index,codec_type,codec_name,width,height,r_frame_rate,channels -print_format json /app/applet/uploads/fixture_corrupt.mp4\n[mov,mp4,m4a,3gp,3g2,mj2 @ 0x555d141faf40] moov atom not found\n/app/applet/uploads/fixture_corrupt.mp4: Invalid data found when processing input\n"
+    },
+    "scan_1791427280915_fwtn3": {
+      "id": "scan_1791427280915_fwtn3",
+      "userId": "user_default",
+      "videoTitle": "fixture_1080p.mp4",
+      "videoDescription": "",
+      "videoFilename": "fixture_1080p.mp4",
+      "videoPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 1,
+      "createdAt": "2026-10-08T02:41:20.915Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "fixture_1080p.mp4",
+        "originalSize": 346889,
+        "durationSeconds": 10,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "completedAt": "2026-10-08T02:41:24.786Z"
+    },
+    "scan_rescan_1791427280925": {
+      "id": "scan_rescan_1791427280925",
+      "userId": "user_default",
+      "videoTitle": "fixture_1080p.mp4 (Revised Cut)",
+      "videoDescription": "",
+      "videoFilename": "revised_cut.mp4",
+      "videoPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 1,
+      "createdAt": "2026-10-08T02:41:20.925Z",
+      "parentScanId": "scan_1791427270758_na8u8",
+      "isRescan": true,
+      "metadata": {
+        "filename": "revised_cut.mp4",
+        "originalSize": 346889,
+        "durationSeconds": 10,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "completedAt": "2026-10-08T02:41:24.792Z"
+    },
+    "scan_1791431612938_3g8g9": {
+      "id": "scan_1791431612938_3g8g9",
+      "userId": "user_default",
+      "videoTitle": "fixture_1080p.mp4",
+      "videoDescription": "",
+      "videoFilename": "fixture_1080p.mp4",
+      "videoPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "Risk report",
+      "completedStages": [
+        "Upload",
+        "Media inspection",
+        "Audio & transcript",
+        "Scene analysis",
+        "Visual evidence",
+        "Policy analysis",
+        "Risk report"
+      ],
+      "creditsUsed": 1,
+      "createdAt": "2026-10-08T03:53:32.938Z",
+      "isRescan": false,
+      "metadata": {
+        "filename": "fixture_1080p.mp4",
+        "originalSize": 346889,
+        "durationSeconds": 10,
+        "width": 1920,
+        "height": 1080,
+        "resolutionLabel": "1080p Full HD",
+        "fps": 30,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "videoCodec": "h264",
+        "isProxyUsed": false
+      },
+      "proxyPath": "/app/applet/uploads/fixture_1080p.mp4",
+      "completedAt": "2026-10-08T03:53:35.800Z"
+    },
+    "scan_demo_1791510341434": {
+      "id": "scan_demo_1791510341434",
+      "userId": "user_default",
+      "videoTitle": "How I Built a Real Business (Uncommentated Clips & Montage)",
+      "videoDescription": "Compilation of business clips and stock footage showing business growth.",
+      "videoFilename": "Top10_Gaming_Montage_With_Clips.mp4",
+      "videoPath": "/app/applet/uploads/demo_1791510341434_Top10_Gaming_Montage_With_Clips.mp4",
+      "scanMode": "standard",
+      "status": "INSPECTING",
+      "currentStage": "Media inspection",
+      "completedStages": [
+        "Upload"
+      ],
+      "creditsUsed": 2,
+      "createdAt": "2026-10-09T01:45:41.434Z",
+      "isRescan": false
+    }
+  },
+  "reports": {
+    "scan_demo_1791425879047": {
+      "scanId": "scan_demo_1791425879047",
+      "overallRisk": "HIGH_RISK",
+      "riskSummary": "Potential monetization risks detected. Multiple signals of reused footage with limited transformative commentary require creator review prior to publishing.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "HIGH_RISK",
+          "score": 68,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Third-party segments without voice transformation create risk during human monetization review."
+        },
+        "videoMonetization": {
+          "status": "HIGH_RISK",
+          "score": 64,
+          "label": "Individual Video Monetization",
+          "explanation": "May face limited ad delivery or Content ID claims if external clips lack licenses or commentary."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "NEEDS_REVIEW",
+          "score": 45,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "Contains recognized audio/visual sequences that may match third-party copyright databases."
+        }
+      },
+      "topIssues": [
+        {
+          "id": "issue_ev_scan_demo_1791425879047_6",
+          "what": "Discrepancy between title promise and opening video content",
+          "where": "00:00–00:10",
+          "why": "Misleading titles or thumbnails that promise a personal narrative while showing generic footage can trigger Clickbait / Deceptive Practices flags.",
+          "fix": "Align the video title with the actual subject matter or add an opening hook that directly addresses the topic promised in the headline.",
+          "severity": "warning",
+          "policyArea": "METADATA COHERENCE",
+          "category": "metadata_coherence",
+          "timestampSeconds": 0
+        },
+        {
+          "id": "issue_ev_scan_demo_1791425879047_2",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:26–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 26
+        },
+        {
+          "id": "issue_ev_scan_demo_1791425879047_3",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:28–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 28
+        },
+        {
+          "id": "issue_ev_scan_demo_1791425879047_4",
+          "what": "Repetitive montage or template-like scene structure",
+          "where": "01:06–01:26",
+          "why": "Automated mass-produced patterns can trigger spam/inauthentic content flags if video appears assembled with canned templates without distinctive variation.",
+          "fix": "Vary transition pacing, introduce personal commentary clips, and break repetitive rhythmic cuts with unique narrative checkpoints.",
+          "severity": "warning",
+          "policyArea": "INAUTHENTIC PATTERN",
+          "category": "inauthentic_pattern",
+          "timestampSeconds": 66
+        }
+      ],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "High Scrutiny",
+          "signalsCount": 2,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Moderate Concern",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Moderate Concern",
+          "signalsCount": 1,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Synthetic & Altered Media Transparency",
+          "category": "ai_disclosure",
+          "impact": "Standard Baseline",
+          "signalsCount": 1,
+          "description": "Requires self-disclosure for realistic generative footage or speech to prevent viewer deception."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_demo_1791425879047_1",
+          "scanId": "scan_demo_1791425879047",
+          "timestampStart": 0,
+          "timestampEnd": 78,
+          "timestampLabel": "00:00–01:18",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.89,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voiceover Detected",
+          "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+        },
+        {
+          "id": "ev_scan_demo_1791425879047_6",
+          "scanId": "scan_demo_1791425879047",
+          "timestampStart": 0,
+          "timestampEnd": 10,
+          "timestampLabel": "00:00–00:10",
+          "type": "metadata_mismatch",
+          "category": "metadata_coherence",
+          "severity": "warning",
+          "confidence": 0.75,
+          "source": "metadata_nlp",
+          "label": "🟡 Metadata Coherence Review",
+          "details": "Title promises empirical documentary / personal business case study, but video opens with generalized montage without creator introduction."
+        },
+        {
+          "id": "ev_scan_demo_1791425879047_5",
+          "scanId": "scan_demo_1791425879047",
+          "timestampStart": 12,
+          "timestampEnd": 24,
+          "timestampLabel": "00:12–00:24",
+          "type": "ai_synthetic_signal",
+          "category": "ai_disclosure",
+          "severity": "info",
+          "confidence": 0.72,
+          "source": "transcript_analysis",
+          "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+          "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+        },
+        {
+          "id": "ev_scan_demo_1791425879047_2",
+          "scanId": "scan_demo_1791425879047",
+          "timestampStart": 26,
+          "timestampEnd": 54,
+          "timestampLabel": "00:26–00:54",
+          "type": "third_party_material",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.86,
+          "source": "visual_hash",
+          "label": "🟡 Third-party Material Signal",
+          "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+        },
+        {
+          "id": "ev_scan_demo_1791425879047_3",
+          "scanId": "scan_demo_1791425879047",
+          "timestampStart": 28,
+          "timestampEnd": 54,
+          "timestampLabel": "00:28–00:54",
+          "type": "low_original_contribution",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.84,
+          "source": "scene_diff",
+          "label": "🟡 Limited Transformation Signals",
+          "details": "Segment plays without voiceover commentary or critical reaction overlay."
+        },
+        {
+          "id": "ev_scan_demo_1791425879047_4",
+          "scanId": "scan_demo_1791425879047",
+          "timestampStart": 66,
+          "timestampEnd": 86,
+          "timestampLabel": "01:06–01:26",
+          "type": "repeated_visual_pattern",
+          "category": "inauthentic_pattern",
+          "severity": "warning",
+          "confidence": 0.78,
+          "source": "scene_diff",
+          "label": "🟡 Template-like Sequence / Repetitive Pacing",
+          "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+        }
+      ],
+      "originalContributionRatio": 58,
+      "reusedContentRatio": 38,
+      "transformationScore": 45,
+      "metadataScore": 62,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 2.34,
+        "inspectionMs": 137,
+        "audioProcessingMs": 96,
+        "videoAnalysisMs": 97,
+        "evidenceBuildingMs": 1,
+        "policyReasoningMs": 1,
+        "framesSampled": 12,
+        "scenesDetected": 24
+      }
+    },
+    "scan_rescan_1791425881505": {
+      "scanId": "scan_rescan_1791425881505",
+      "overallRisk": "LOW_RISK",
+      "riskSummary": "No major risk signals detected in this revised scan. Substantive original contribution and active commentary now frame third-party sequences.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "LOW_RISK",
+          "score": 18,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Healthy level of original creator contribution and commentary detected."
+        },
+        "videoMonetization": {
+          "status": "LOW_RISK",
+          "score": 15,
+          "label": "Individual Video Monetization",
+          "explanation": "Favorable conditions for full green monetization icon."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "LOW_RISK",
+          "score": 10,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "No significant unlicensed fingerprints detected."
+        }
+      },
+      "topIssues": [
+        {
+          "id": "issue_ev_scan_rescan_1791425881505_2",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:43–01:00",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 43
+        }
+      ],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "Compliant",
+          "signalsCount": 1,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Synthetic & Altered Media Transparency",
+          "category": "ai_disclosure",
+          "impact": "Standard Baseline",
+          "signalsCount": 0,
+          "description": "Requires self-disclosure for realistic generative footage or speech to prevent viewer deception."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_rescan_1791425881505_1",
+          "scanId": "scan_rescan_1791425881505",
+          "timestampStart": 0,
+          "timestampEnd": 42,
+          "timestampLabel": "00:00–00:42",
+          "type": "original_commentary",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.94,
+          "source": "transcript_analysis",
+          "label": "🟢 Substantive Original Commentary",
+          "details": "Clear creator introduction and critical analysis framing the upcoming topic."
+        },
+        {
+          "id": "ev_scan_rescan_1791425881505_2",
+          "scanId": "scan_rescan_1791425881505",
+          "timestampStart": 43,
+          "timestampEnd": 60,
+          "timestampLabel": "00:43–01:00",
+          "type": "third_party_material",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.82,
+          "source": "visual_hash",
+          "label": "🟡 Short Third-Party Excerpt (Transformed)",
+          "details": "Third-party footage used with active picture-in-picture commentary and narrative editing."
+        },
+        {
+          "id": "ev_scan_rescan_1791425881505_3",
+          "scanId": "scan_rescan_1791425881505",
+          "timestampStart": 61,
+          "timestampEnd": 120,
+          "timestampLabel": "01:01–02:00",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.96,
+          "source": "audio_spectrum",
+          "label": "🟢 Continuous Original Analysis & Synthesis",
+          "details": "Unbroken voiceover providing original context, comparison, and editorial perspective."
+        }
+      ],
+      "originalContributionRatio": 86,
+      "reusedContentRatio": 14,
+      "transformationScore": 88,
+      "metadataScore": 94,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 2.27,
+        "inspectionMs": 87,
+        "audioProcessingMs": 83,
+        "videoAnalysisMs": 89,
+        "evidenceBuildingMs": 0,
+        "policyReasoningMs": 0,
+        "framesSampled": 12,
+        "scenesDetected": 24
+      }
+    },
+    "scan_1791426945284_xgf91": {
+      "scanId": "scan_1791426945284_xgf91",
+      "overallRisk": "HIGH_RISK",
+      "riskSummary": "Potential monetization risks detected. Multiple signals of reused footage with limited transformative commentary require creator review prior to publishing.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "HIGH_RISK",
+          "score": 68,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Third-party segments without voice transformation create risk during human monetization review."
+        },
+        "videoMonetization": {
+          "status": "HIGH_RISK",
+          "score": 64,
+          "label": "Individual Video Monetization",
+          "explanation": "May face limited ad delivery or Content ID claims if external clips lack licenses or commentary."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "NEEDS_REVIEW",
+          "score": 45,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "Contains recognized audio/visual sequences that may match third-party copyright databases."
+        }
+      },
+      "topIssues": [
+        {
+          "id": "issue_ev_scan_1791426945284_xgf91_2",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:26–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 26
+        },
+        {
+          "id": "issue_ev_scan_1791426945284_xgf91_3",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:28–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 28
+        },
+        {
+          "id": "issue_ev_scan_1791426945284_xgf91_4",
+          "what": "Repetitive montage or template-like scene structure",
+          "where": "01:06–01:26",
+          "why": "Automated mass-produced patterns can trigger spam/inauthentic content flags if video appears assembled with canned templates without distinctive variation.",
+          "fix": "Vary transition pacing, introduce personal commentary clips, and break repetitive rhythmic cuts with unique narrative checkpoints.",
+          "severity": "warning",
+          "policyArea": "INAUTHENTIC PATTERN",
+          "category": "inauthentic_pattern",
+          "timestampSeconds": 66
+        }
+      ],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "High Scrutiny",
+          "signalsCount": 2,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Moderate Concern",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Moderate Concern",
+          "signalsCount": 1,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Synthetic & Altered Media Transparency",
+          "category": "ai_disclosure",
+          "impact": "Standard Baseline",
+          "signalsCount": 1,
+          "description": "Requires self-disclosure for realistic generative footage or speech to prevent viewer deception."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791426945284_xgf91_1",
+          "scanId": "scan_1791426945284_xgf91",
+          "timestampStart": 0,
+          "timestampEnd": 78,
+          "timestampLabel": "00:00–01:18",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.89,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voiceover Detected",
+          "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+        },
+        {
+          "id": "ev_scan_1791426945284_xgf91_5",
+          "scanId": "scan_1791426945284_xgf91",
+          "timestampStart": 12,
+          "timestampEnd": 24,
+          "timestampLabel": "00:12–00:24",
+          "type": "ai_synthetic_signal",
+          "category": "ai_disclosure",
+          "severity": "info",
+          "confidence": 0.72,
+          "source": "transcript_analysis",
+          "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+          "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+        },
+        {
+          "id": "ev_scan_1791426945284_xgf91_2",
+          "scanId": "scan_1791426945284_xgf91",
+          "timestampStart": 26,
+          "timestampEnd": 54,
+          "timestampLabel": "00:26–00:54",
+          "type": "third_party_material",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.86,
+          "source": "visual_hash",
+          "label": "🟡 Third-party Material Signal",
+          "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+        },
+        {
+          "id": "ev_scan_1791426945284_xgf91_3",
+          "scanId": "scan_1791426945284_xgf91",
+          "timestampStart": 28,
+          "timestampEnd": 54,
+          "timestampLabel": "00:28–00:54",
+          "type": "low_original_contribution",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.84,
+          "source": "scene_diff",
+          "label": "🟡 Limited Transformation Signals",
+          "details": "Segment plays without voiceover commentary or critical reaction overlay."
+        },
+        {
+          "id": "ev_scan_1791426945284_xgf91_4",
+          "scanId": "scan_1791426945284_xgf91",
+          "timestampStart": 66,
+          "timestampEnd": 86,
+          "timestampLabel": "01:06–01:26",
+          "type": "repeated_visual_pattern",
+          "category": "inauthentic_pattern",
+          "severity": "warning",
+          "confidence": 0.78,
+          "source": "scene_diff",
+          "label": "🟡 Template-like Sequence / Repetitive Pacing",
+          "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+        }
+      ],
+      "originalContributionRatio": 58,
+      "reusedContentRatio": 38,
+      "transformationScore": 45,
+      "metadataScore": 94,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 2.29,
+        "inspectionMs": 94,
+        "audioProcessingMs": 91,
+        "videoAnalysisMs": 94,
+        "evidenceBuildingMs": 1,
+        "policyReasoningMs": 1,
+        "framesSampled": 12,
+        "scenesDetected": 24
+      }
+    },
+    "scan_1791426947833_z0590": {
+      "scanId": "scan_1791426947833_z0590",
+      "overallRisk": "HIGH_RISK",
+      "riskSummary": "Potential monetization risks detected. Multiple signals of reused footage with limited transformative commentary require creator review prior to publishing.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "HIGH_RISK",
+          "score": 68,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Third-party segments without voice transformation create risk during human monetization review."
+        },
+        "videoMonetization": {
+          "status": "HIGH_RISK",
+          "score": 64,
+          "label": "Individual Video Monetization",
+          "explanation": "May face limited ad delivery or Content ID claims if external clips lack licenses or commentary."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "NEEDS_REVIEW",
+          "score": 45,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "Contains recognized audio/visual sequences that may match third-party copyright databases."
+        }
+      },
+      "topIssues": [
+        {
+          "id": "issue_ev_scan_1791426947833_z0590_2",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:26–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 26
+        },
+        {
+          "id": "issue_ev_scan_1791426947833_z0590_3",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:28–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 28
+        },
+        {
+          "id": "issue_ev_scan_1791426947833_z0590_4",
+          "what": "Repetitive montage or template-like scene structure",
+          "where": "01:06–01:26",
+          "why": "Automated mass-produced patterns can trigger spam/inauthentic content flags if video appears assembled with canned templates without distinctive variation.",
+          "fix": "Vary transition pacing, introduce personal commentary clips, and break repetitive rhythmic cuts with unique narrative checkpoints.",
+          "severity": "warning",
+          "policyArea": "INAUTHENTIC PATTERN",
+          "category": "inauthentic_pattern",
+          "timestampSeconds": 66
+        }
+      ],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "High Scrutiny",
+          "signalsCount": 2,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Moderate Concern",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Moderate Concern",
+          "signalsCount": 1,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Synthetic & Altered Media Transparency",
+          "category": "ai_disclosure",
+          "impact": "Standard Baseline",
+          "signalsCount": 1,
+          "description": "Requires self-disclosure for realistic generative footage or speech to prevent viewer deception."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791426947833_z0590_1",
+          "scanId": "scan_1791426947833_z0590",
+          "timestampStart": 0,
+          "timestampEnd": 78,
+          "timestampLabel": "00:00–01:18",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.89,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voiceover Detected",
+          "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+        },
+        {
+          "id": "ev_scan_1791426947833_z0590_5",
+          "scanId": "scan_1791426947833_z0590",
+          "timestampStart": 12,
+          "timestampEnd": 24,
+          "timestampLabel": "00:12–00:24",
+          "type": "ai_synthetic_signal",
+          "category": "ai_disclosure",
+          "severity": "info",
+          "confidence": 0.72,
+          "source": "transcript_analysis",
+          "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+          "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+        },
+        {
+          "id": "ev_scan_1791426947833_z0590_2",
+          "scanId": "scan_1791426947833_z0590",
+          "timestampStart": 26,
+          "timestampEnd": 54,
+          "timestampLabel": "00:26–00:54",
+          "type": "third_party_material",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.86,
+          "source": "visual_hash",
+          "label": "🟡 Third-party Material Signal",
+          "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+        },
+        {
+          "id": "ev_scan_1791426947833_z0590_3",
+          "scanId": "scan_1791426947833_z0590",
+          "timestampStart": 28,
+          "timestampEnd": 54,
+          "timestampLabel": "00:28–00:54",
+          "type": "low_original_contribution",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.84,
+          "source": "scene_diff",
+          "label": "🟡 Limited Transformation Signals",
+          "details": "Segment plays without voiceover commentary or critical reaction overlay."
+        },
+        {
+          "id": "ev_scan_1791426947833_z0590_4",
+          "scanId": "scan_1791426947833_z0590",
+          "timestampStart": 66,
+          "timestampEnd": 86,
+          "timestampLabel": "01:06–01:26",
+          "type": "repeated_visual_pattern",
+          "category": "inauthentic_pattern",
+          "severity": "warning",
+          "confidence": 0.78,
+          "source": "scene_diff",
+          "label": "🟡 Template-like Sequence / Repetitive Pacing",
+          "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+        }
+      ],
+      "originalContributionRatio": 58,
+      "reusedContentRatio": 38,
+      "transformationScore": 45,
+      "metadataScore": 94,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 2.34,
+        "inspectionMs": 110,
+        "audioProcessingMs": 100,
+        "videoAnalysisMs": 117,
+        "evidenceBuildingMs": 1,
+        "policyReasoningMs": 0,
+        "framesSampled": 12,
+        "scenesDetected": 24
+      }
+    },
+    "scan_1791426947841_bx5l5": {
+      "scanId": "scan_1791426947841_bx5l5",
+      "overallRisk": "HIGH_RISK",
+      "riskSummary": "Potential monetization risks detected. Multiple signals of reused footage with limited transformative commentary require creator review prior to publishing.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "HIGH_RISK",
+          "score": 68,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Third-party segments without voice transformation create risk during human monetization review."
+        },
+        "videoMonetization": {
+          "status": "HIGH_RISK",
+          "score": 64,
+          "label": "Individual Video Monetization",
+          "explanation": "May face limited ad delivery or Content ID claims if external clips lack licenses or commentary."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "NEEDS_REVIEW",
+          "score": 45,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "Contains recognized audio/visual sequences that may match third-party copyright databases."
+        }
+      },
+      "topIssues": [
+        {
+          "id": "issue_ev_scan_1791426947841_bx5l5_2",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:26–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 26
+        },
+        {
+          "id": "issue_ev_scan_1791426947841_bx5l5_3",
+          "what": "Visually similar third-party sequence with minimal voiceover overlay",
+          "where": "00:28–00:54",
+          "why": "Platform reused-content policies penalize videos where third-party footage is presented without significant original value, commentary, or narrative transformation.",
+          "fix": "Add voiceover analysis, critique, or picture-in-picture commentary explaining the significance of this clip, or replace with original demonstration.",
+          "severity": "warning",
+          "policyArea": "REUSED CONTENT",
+          "category": "reused_content",
+          "timestampSeconds": 28
+        },
+        {
+          "id": "issue_ev_scan_1791426947841_bx5l5_4",
+          "what": "Repetitive montage or template-like scene structure",
+          "where": "01:06–01:26",
+          "why": "Automated mass-produced patterns can trigger spam/inauthentic content flags if video appears assembled with canned templates without distinctive variation.",
+          "fix": "Vary transition pacing, introduce personal commentary clips, and break repetitive rhythmic cuts with unique narrative checkpoints.",
+          "severity": "warning",
+          "policyArea": "INAUTHENTIC PATTERN",
+          "category": "inauthentic_pattern",
+          "timestampSeconds": 66
+        }
+      ],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "High Scrutiny",
+          "signalsCount": 2,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Moderate Concern",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Moderate Concern",
+          "signalsCount": 1,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Synthetic & Altered Media Transparency",
+          "category": "ai_disclosure",
+          "impact": "Standard Baseline",
+          "signalsCount": 1,
+          "description": "Requires self-disclosure for realistic generative footage or speech to prevent viewer deception."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791426947841_bx5l5_1",
+          "scanId": "scan_1791426947841_bx5l5",
+          "timestampStart": 0,
+          "timestampEnd": 78,
+          "timestampLabel": "00:00–01:18",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.89,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voiceover Detected",
+          "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+        },
+        {
+          "id": "ev_scan_1791426947841_bx5l5_5",
+          "scanId": "scan_1791426947841_bx5l5",
+          "timestampStart": 12,
+          "timestampEnd": 24,
+          "timestampLabel": "00:12–00:24",
+          "type": "ai_synthetic_signal",
+          "category": "ai_disclosure",
+          "severity": "info",
+          "confidence": 0.72,
+          "source": "transcript_analysis",
+          "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+          "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+        },
+        {
+          "id": "ev_scan_1791426947841_bx5l5_2",
+          "scanId": "scan_1791426947841_bx5l5",
+          "timestampStart": 26,
+          "timestampEnd": 54,
+          "timestampLabel": "00:26–00:54",
+          "type": "third_party_material",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.86,
+          "source": "visual_hash",
+          "label": "🟡 Third-party Material Signal",
+          "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+        },
+        {
+          "id": "ev_scan_1791426947841_bx5l5_3",
+          "scanId": "scan_1791426947841_bx5l5",
+          "timestampStart": 28,
+          "timestampEnd": 54,
+          "timestampLabel": "00:28–00:54",
+          "type": "low_original_contribution",
+          "category": "reused_content",
+          "severity": "warning",
+          "confidence": 0.84,
+          "source": "scene_diff",
+          "label": "🟡 Limited Transformation Signals",
+          "details": "Segment plays without voiceover commentary or critical reaction overlay."
+        },
+        {
+          "id": "ev_scan_1791426947841_bx5l5_4",
+          "scanId": "scan_1791426947841_bx5l5",
+          "timestampStart": 66,
+          "timestampEnd": 86,
+          "timestampLabel": "01:06–01:26",
+          "type": "repeated_visual_pattern",
+          "category": "inauthentic_pattern",
+          "severity": "warning",
+          "confidence": 0.78,
+          "source": "scene_diff",
+          "label": "🟡 Template-like Sequence / Repetitive Pacing",
+          "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+        }
+      ],
+      "originalContributionRatio": 58,
+      "reusedContentRatio": 38,
+      "transformationScore": 45,
+      "metadataScore": 94,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 2.33,
+        "inspectionMs": 106,
+        "audioProcessingMs": 97,
+        "videoAnalysisMs": 113,
+        "evidenceBuildingMs": 0,
+        "policyReasoningMs": 0,
+        "framesSampled": 12,
+        "scenesDetected": 24
+      }
+    },
+    "scan_1791427270758_na8u8": {
+      "scanId": "scan_1791427270758_na8u8",
+      "overallRisk": "LOW_RISK",
+      "riskSummary": "No major risk signals detected in this scan.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "LOW_RISK",
+          "score": 14,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Healthy level of original creator contribution and commentary detected."
+        },
+        "videoMonetization": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Individual Video Monetization",
+          "explanation": "Favorable conditions for full green monetization icon."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 10,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "No significant unlicensed fingerprints detected."
+        }
+      },
+      "topIssues": [],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791427270758_na8u8_1",
+          "scanId": "scan_1791427270758_na8u8",
+          "timestampStart": 0,
+          "timestampEnd": 10,
+          "timestampLabel": "00:00–00:10",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.92,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voice Narration Detected",
+          "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+        }
+      ],
+      "originalContributionRatio": 70,
+      "reusedContentRatio": 0,
+      "transformationScore": 76,
+      "metadataScore": 95,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 2.83,
+        "inspectionMs": 124,
+        "audioProcessingMs": 603,
+        "videoAnalysisMs": 589,
+        "evidenceBuildingMs": 1,
+        "policyReasoningMs": 1,
+        "framesSampled": 1,
+        "scenesDetected": 2
+      }
+    },
+    "scan_1791427273795_tqt9n": {
+      "scanId": "scan_1791427273795_tqt9n",
+      "overallRisk": "LOW_RISK",
+      "riskSummary": "No major risk signals detected in this scan.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "LOW_RISK",
+          "score": 14,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Healthy level of original creator contribution and commentary detected."
+        },
+        "videoMonetization": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Individual Video Monetization",
+          "explanation": "Favorable conditions for full green monetization icon."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 10,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "No significant unlicensed fingerprints detected."
+        }
+      },
+      "topIssues": [],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791427273795_tqt9n_1",
+          "scanId": "scan_1791427273795_tqt9n",
+          "timestampStart": 0,
+          "timestampEnd": 5,
+          "timestampLabel": "00:00–00:05",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.92,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voice Narration Detected",
+          "details": "Acoustic energy identified creator voice presence (00:00–00:05)."
+        }
+      ],
+      "originalContributionRatio": 70,
+      "reusedContentRatio": 0,
+      "transformationScore": 76,
+      "metadataScore": 95,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 4.38,
+        "inspectionMs": 118,
+        "audioProcessingMs": 247,
+        "videoAnalysisMs": 229,
+        "evidenceBuildingMs": 0,
+        "policyReasoningMs": 0,
+        "framesSampled": 1,
+        "scenesDetected": 1
+      }
+    },
+    "scan_1791427278375_5pfz2": {
+      "scanId": "scan_1791427278375_5pfz2",
+      "overallRisk": "HIGH_RISK",
+      "riskSummary": "Potential monetization risks detected. Multiple signals require creator review prior to publishing.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "HIGH_RISK",
+          "score": 68,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Third-party segments without voice transformation create risk during human monetization review."
+        },
+        "videoMonetization": {
+          "status": "HIGH_RISK",
+          "score": 62,
+          "label": "Individual Video Monetization",
+          "explanation": "May face limited ad delivery or Content ID claims if external clips lack licenses or commentary."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 10,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "No significant unlicensed fingerprints detected."
+        }
+      },
+      "topIssues": [
+        {
+          "id": "issue_ev_scan_1791427278375_5pfz2_1",
+          "what": "Absence of creator commentary or voiceover narration",
+          "where": "00:00–00:06",
+          "why": "Monetization reviewers look for an identifiable creator presence and original perspective.",
+          "fix": "Record an original voice track explaining the context, sharing insights, or guiding the viewer.",
+          "severity": "high",
+          "policyArea": "ORIGINAL CONTRIBUTION",
+          "category": "original_contribution",
+          "timestampSeconds": 0
+        },
+        {
+          "id": "issue_ev_scan_1791427278375_5pfz2_2",
+          "what": "Absence of creator commentary or voiceover narration",
+          "where": "00:00–00:06",
+          "why": "Monetization reviewers look for an identifiable creator presence and original perspective.",
+          "fix": "Record an original voice track explaining the context, sharing insights, or guiding the viewer.",
+          "severity": "warning",
+          "policyArea": "ORIGINAL CONTRIBUTION",
+          "category": "original_contribution",
+          "timestampSeconds": 0
+        }
+      ],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "High Scrutiny",
+          "signalsCount": 2,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791427278375_5pfz2_1",
+          "scanId": "scan_1791427278375_5pfz2",
+          "timestampStart": 0,
+          "timestampEnd": 6,
+          "timestampLabel": "00:00–00:06",
+          "type": "low_original_contribution",
+          "category": "original_contribution",
+          "severity": "high",
+          "confidence": 0.95,
+          "source": "audio_spectrum",
+          "label": "🔴 Unaccompanied Audio: Absence of Creator Narration",
+          "details": "No vocal commentary or narrative voice identified. Track relies exclusively on background music or ambient sound."
+        },
+        {
+          "id": "ev_scan_1791427278375_5pfz2_2",
+          "scanId": "scan_1791427278375_5pfz2",
+          "timestampStart": 0,
+          "timestampEnd": 6,
+          "timestampLabel": "00:00–00:06",
+          "type": "low_original_contribution",
+          "category": "original_contribution",
+          "severity": "warning",
+          "confidence": 0.85,
+          "source": "silence_detect",
+          "label": "🟡 Extended Silence / Unedited Segment",
+          "details": "Prolonged silence gap of 6s detected. May cause viewer drop-off or automated quality demotion."
+        }
+      ],
+      "originalContributionRatio": 0,
+      "reusedContentRatio": 0,
+      "transformationScore": 20,
+      "metadataScore": 95,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 1.81,
+        "inspectionMs": 92,
+        "audioProcessingMs": 0,
+        "videoAnalysisMs": 200,
+        "evidenceBuildingMs": 1,
+        "policyReasoningMs": 0,
+        "framesSampled": 1,
+        "scenesDetected": 1
+      }
+    },
+    "scan_1791427280915_fwtn3": {
+      "scanId": "scan_1791427280915_fwtn3",
+      "overallRisk": "LOW_RISK",
+      "riskSummary": "No major risk signals detected in this scan.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "LOW_RISK",
+          "score": 14,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Healthy level of original creator contribution and commentary detected."
+        },
+        "videoMonetization": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Individual Video Monetization",
+          "explanation": "Favorable conditions for full green monetization icon."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 10,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "No significant unlicensed fingerprints detected."
+        }
+      },
+      "topIssues": [],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791427280915_fwtn3_1",
+          "scanId": "scan_1791427280915_fwtn3",
+          "timestampStart": 0,
+          "timestampEnd": 10,
+          "timestampLabel": "00:00–00:10",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.92,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voice Narration Detected",
+          "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+        }
+      ],
+      "originalContributionRatio": 70,
+      "reusedContentRatio": 0,
+      "transformationScore": 76,
+      "metadataScore": 95,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 3.87,
+        "inspectionMs": 100,
+        "audioProcessingMs": 1139,
+        "videoAnalysisMs": 1115,
+        "evidenceBuildingMs": 0,
+        "policyReasoningMs": 0,
+        "framesSampled": 1,
+        "scenesDetected": 2
+      }
+    },
+    "scan_rescan_1791427280925": {
+      "scanId": "scan_rescan_1791427280925",
+      "overallRisk": "LOW_RISK",
+      "riskSummary": "No major risk signals detected in this scan.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "LOW_RISK",
+          "score": 14,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Healthy level of original creator contribution and commentary detected."
+        },
+        "videoMonetization": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Individual Video Monetization",
+          "explanation": "Favorable conditions for full green monetization icon."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 10,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "No significant unlicensed fingerprints detected."
+        }
+      },
+      "topIssues": [],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_rescan_1791427280925_1",
+          "scanId": "scan_rescan_1791427280925",
+          "timestampStart": 0,
+          "timestampEnd": 10,
+          "timestampLabel": "00:00–00:10",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.92,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voice Narration Detected",
+          "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+        }
+      ],
+      "originalContributionRatio": 70,
+      "reusedContentRatio": 0,
+      "transformationScore": 76,
+      "metadataScore": 95,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 3.86,
+        "inspectionMs": 105,
+        "audioProcessingMs": 1136,
+        "videoAnalysisMs": 1104,
+        "evidenceBuildingMs": 2,
+        "policyReasoningMs": 1,
+        "framesSampled": 1,
+        "scenesDetected": 2
+      }
+    },
+    "scan_1791431612938_3g8g9": {
+      "scanId": "scan_1791431612938_3g8g9",
+      "overallRisk": "LOW_RISK",
+      "riskSummary": "No major risk signals detected in this scan.",
+      "riskCategories": {
+        "yppMonetization": {
+          "status": "LOW_RISK",
+          "score": 14,
+          "label": "Channel & YPP Eligibility",
+          "explanation": "Healthy level of original creator contribution and commentary detected."
+        },
+        "videoMonetization": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Individual Video Monetization",
+          "explanation": "Favorable conditions for full green monetization icon."
+        },
+        "advertiserFriendly": {
+          "status": "LOW_RISK",
+          "score": 10,
+          "label": "Advertiser-Friendly Suitability",
+          "explanation": "No profanity spikes, graphic themes, or controversial policy violations detected in audio or video."
+        },
+        "copyrightSignals": {
+          "status": "LOW_RISK",
+          "score": 12,
+          "label": "Copyright & Third-Party Signals",
+          "explanation": "No significant unlicensed fingerprints detected."
+        }
+      },
+      "topIssues": [],
+      "policyConnections": [
+        {
+          "policyName": "YouTube Partner Program (YPP) Reused Content",
+          "category": "reused_content",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Requires that clips taken from other sources be part of a larger, original commentary or critical review."
+        },
+        {
+          "policyName": "Original Creator Contribution & Value Add",
+          "category": "original_contribution",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Evaluates presence of creator voice, unique synthesis, editing structure, and educational or comedic value."
+        },
+        {
+          "policyName": "Inauthentic & Mass-Produced Content Policy",
+          "category": "inauthentic_pattern",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Targets channels that churn out repetitive videos using automated templates without meaningful differentiation."
+        },
+        {
+          "policyName": "Advertiser-Friendly Ad Suitability Guidelines",
+          "category": "advertiser_friendly",
+          "impact": "Compliant",
+          "signalsCount": 0,
+          "description": "Maintains ad suitability standards regarding violence, vulgar language, sensitive themes, and shocking visuals."
+        }
+      ],
+      "timeline": [
+        {
+          "id": "ev_scan_1791431612938_3g8g9_1",
+          "scanId": "scan_1791431612938_3g8g9",
+          "timestampStart": 0,
+          "timestampEnd": 10,
+          "timestampLabel": "00:00–00:10",
+          "type": "original_narration",
+          "category": "original_contribution",
+          "severity": "info",
+          "confidence": 0.92,
+          "source": "audio_spectrum",
+          "label": "🟢 Original Voice Narration Detected",
+          "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+        }
+      ],
+      "originalContributionRatio": 70,
+      "reusedContentRatio": 0,
+      "transformationScore": 76,
+      "metadataScore": 95,
+      "benchmarkMetrics": {
+        "totalProcessingSeconds": 2.86,
+        "inspectionMs": 118,
+        "audioProcessingMs": 594,
+        "videoAnalysisMs": 629,
+        "evidenceBuildingMs": 2,
+        "policyReasoningMs": 0,
+        "framesSampled": 1,
+        "scenesDetected": 2
+      }
+    }
+  },
+  "evidence": {
+    "scan_demo_1791425879047": [
+      {
+        "id": "ev_scan_demo_1791425879047_1",
+        "scanId": "scan_demo_1791425879047",
+        "timestampStart": 0,
+        "timestampEnd": 78,
+        "timestampLabel": "00:00–01:18",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.89,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voiceover Detected",
+        "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+      },
+      {
+        "id": "ev_scan_demo_1791425879047_6",
+        "scanId": "scan_demo_1791425879047",
+        "timestampStart": 0,
+        "timestampEnd": 10,
+        "timestampLabel": "00:00–00:10",
+        "type": "metadata_mismatch",
+        "category": "metadata_coherence",
+        "severity": "warning",
+        "confidence": 0.75,
+        "source": "metadata_nlp",
+        "label": "🟡 Metadata Coherence Review",
+        "details": "Title promises empirical documentary / personal business case study, but video opens with generalized montage without creator introduction."
+      },
+      {
+        "id": "ev_scan_demo_1791425879047_5",
+        "scanId": "scan_demo_1791425879047",
+        "timestampStart": 12,
+        "timestampEnd": 24,
+        "timestampLabel": "00:12–00:24",
+        "type": "ai_synthetic_signal",
+        "category": "ai_disclosure",
+        "severity": "info",
+        "confidence": 0.72,
+        "source": "transcript_analysis",
+        "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+        "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+      },
+      {
+        "id": "ev_scan_demo_1791425879047_2",
+        "scanId": "scan_demo_1791425879047",
+        "timestampStart": 26,
+        "timestampEnd": 54,
+        "timestampLabel": "00:26–00:54",
+        "type": "third_party_material",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.86,
+        "source": "visual_hash",
+        "label": "🟡 Third-party Material Signal",
+        "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+      },
+      {
+        "id": "ev_scan_demo_1791425879047_3",
+        "scanId": "scan_demo_1791425879047",
+        "timestampStart": 28,
+        "timestampEnd": 54,
+        "timestampLabel": "00:28–00:54",
+        "type": "low_original_contribution",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.84,
+        "source": "scene_diff",
+        "label": "🟡 Limited Transformation Signals",
+        "details": "Segment plays without voiceover commentary or critical reaction overlay."
+      },
+      {
+        "id": "ev_scan_demo_1791425879047_4",
+        "scanId": "scan_demo_1791425879047",
+        "timestampStart": 66,
+        "timestampEnd": 86,
+        "timestampLabel": "01:06–01:26",
+        "type": "repeated_visual_pattern",
+        "category": "inauthentic_pattern",
+        "severity": "warning",
+        "confidence": 0.78,
+        "source": "scene_diff",
+        "label": "🟡 Template-like Sequence / Repetitive Pacing",
+        "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+      }
+    ],
+    "scan_rescan_1791425881505": [
+      {
+        "id": "ev_scan_rescan_1791425881505_1",
+        "scanId": "scan_rescan_1791425881505",
+        "timestampStart": 0,
+        "timestampEnd": 42,
+        "timestampLabel": "00:00–00:42",
+        "type": "original_commentary",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.94,
+        "source": "transcript_analysis",
+        "label": "🟢 Substantive Original Commentary",
+        "details": "Clear creator introduction and critical analysis framing the upcoming topic."
+      },
+      {
+        "id": "ev_scan_rescan_1791425881505_2",
+        "scanId": "scan_rescan_1791425881505",
+        "timestampStart": 43,
+        "timestampEnd": 60,
+        "timestampLabel": "00:43–01:00",
+        "type": "third_party_material",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.82,
+        "source": "visual_hash",
+        "label": "🟡 Short Third-Party Excerpt (Transformed)",
+        "details": "Third-party footage used with active picture-in-picture commentary and narrative editing."
+      },
+      {
+        "id": "ev_scan_rescan_1791425881505_3",
+        "scanId": "scan_rescan_1791425881505",
+        "timestampStart": 61,
+        "timestampEnd": 120,
+        "timestampLabel": "01:01–02:00",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.96,
+        "source": "audio_spectrum",
+        "label": "🟢 Continuous Original Analysis & Synthesis",
+        "details": "Unbroken voiceover providing original context, comparison, and editorial perspective."
+      }
+    ],
+    "scan_1791426945284_xgf91": [
+      {
+        "id": "ev_scan_1791426945284_xgf91_1",
+        "scanId": "scan_1791426945284_xgf91",
+        "timestampStart": 0,
+        "timestampEnd": 78,
+        "timestampLabel": "00:00–01:18",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.89,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voiceover Detected",
+        "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+      },
+      {
+        "id": "ev_scan_1791426945284_xgf91_5",
+        "scanId": "scan_1791426945284_xgf91",
+        "timestampStart": 12,
+        "timestampEnd": 24,
+        "timestampLabel": "00:12–00:24",
+        "type": "ai_synthetic_signal",
+        "category": "ai_disclosure",
+        "severity": "info",
+        "confidence": 0.72,
+        "source": "transcript_analysis",
+        "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+        "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+      },
+      {
+        "id": "ev_scan_1791426945284_xgf91_2",
+        "scanId": "scan_1791426945284_xgf91",
+        "timestampStart": 26,
+        "timestampEnd": 54,
+        "timestampLabel": "00:26–00:54",
+        "type": "third_party_material",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.86,
+        "source": "visual_hash",
+        "label": "🟡 Third-party Material Signal",
+        "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+      },
+      {
+        "id": "ev_scan_1791426945284_xgf91_3",
+        "scanId": "scan_1791426945284_xgf91",
+        "timestampStart": 28,
+        "timestampEnd": 54,
+        "timestampLabel": "00:28–00:54",
+        "type": "low_original_contribution",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.84,
+        "source": "scene_diff",
+        "label": "🟡 Limited Transformation Signals",
+        "details": "Segment plays without voiceover commentary or critical reaction overlay."
+      },
+      {
+        "id": "ev_scan_1791426945284_xgf91_4",
+        "scanId": "scan_1791426945284_xgf91",
+        "timestampStart": 66,
+        "timestampEnd": 86,
+        "timestampLabel": "01:06–01:26",
+        "type": "repeated_visual_pattern",
+        "category": "inauthentic_pattern",
+        "severity": "warning",
+        "confidence": 0.78,
+        "source": "scene_diff",
+        "label": "🟡 Template-like Sequence / Repetitive Pacing",
+        "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+      }
+    ],
+    "scan_1791426947833_z0590": [
+      {
+        "id": "ev_scan_1791426947833_z0590_1",
+        "scanId": "scan_1791426947833_z0590",
+        "timestampStart": 0,
+        "timestampEnd": 78,
+        "timestampLabel": "00:00–01:18",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.89,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voiceover Detected",
+        "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+      },
+      {
+        "id": "ev_scan_1791426947833_z0590_5",
+        "scanId": "scan_1791426947833_z0590",
+        "timestampStart": 12,
+        "timestampEnd": 24,
+        "timestampLabel": "00:12–00:24",
+        "type": "ai_synthetic_signal",
+        "category": "ai_disclosure",
+        "severity": "info",
+        "confidence": 0.72,
+        "source": "transcript_analysis",
+        "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+        "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+      },
+      {
+        "id": "ev_scan_1791426947833_z0590_2",
+        "scanId": "scan_1791426947833_z0590",
+        "timestampStart": 26,
+        "timestampEnd": 54,
+        "timestampLabel": "00:26–00:54",
+        "type": "third_party_material",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.86,
+        "source": "visual_hash",
+        "label": "🟡 Third-party Material Signal",
+        "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+      },
+      {
+        "id": "ev_scan_1791426947833_z0590_3",
+        "scanId": "scan_1791426947833_z0590",
+        "timestampStart": 28,
+        "timestampEnd": 54,
+        "timestampLabel": "00:28–00:54",
+        "type": "low_original_contribution",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.84,
+        "source": "scene_diff",
+        "label": "🟡 Limited Transformation Signals",
+        "details": "Segment plays without voiceover commentary or critical reaction overlay."
+      },
+      {
+        "id": "ev_scan_1791426947833_z0590_4",
+        "scanId": "scan_1791426947833_z0590",
+        "timestampStart": 66,
+        "timestampEnd": 86,
+        "timestampLabel": "01:06–01:26",
+        "type": "repeated_visual_pattern",
+        "category": "inauthentic_pattern",
+        "severity": "warning",
+        "confidence": 0.78,
+        "source": "scene_diff",
+        "label": "🟡 Template-like Sequence / Repetitive Pacing",
+        "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+      }
+    ],
+    "scan_1791426947841_bx5l5": [
+      {
+        "id": "ev_scan_1791426947841_bx5l5_1",
+        "scanId": "scan_1791426947841_bx5l5",
+        "timestampStart": 0,
+        "timestampEnd": 78,
+        "timestampLabel": "00:00–01:18",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.89,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voiceover Detected",
+        "details": "Acoustic voice presence identified with dynamic vocal range and organic cadences."
+      },
+      {
+        "id": "ev_scan_1791426947841_bx5l5_5",
+        "scanId": "scan_1791426947841_bx5l5",
+        "timestampStart": 12,
+        "timestampEnd": 24,
+        "timestampLabel": "00:12–00:24",
+        "type": "ai_synthetic_signal",
+        "category": "ai_disclosure",
+        "severity": "info",
+        "confidence": 0.72,
+        "source": "transcript_analysis",
+        "label": "🔵 Synthetic Voice Cadence: Review Disclosure",
+        "details": "Speech synthesis cadence detected. Platform policy requires label disclosure if realistic synthetic person or altered real events are depicted."
+      },
+      {
+        "id": "ev_scan_1791426947841_bx5l5_2",
+        "scanId": "scan_1791426947841_bx5l5",
+        "timestampStart": 26,
+        "timestampEnd": 54,
+        "timestampLabel": "00:26–00:54",
+        "type": "third_party_material",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.86,
+        "source": "visual_hash",
+        "label": "🟡 Third-party Material Signal",
+        "details": "Visual sequence matches known third-party clip library or broadcast clip pattern with minimal transformative editing."
+      },
+      {
+        "id": "ev_scan_1791426947841_bx5l5_3",
+        "scanId": "scan_1791426947841_bx5l5",
+        "timestampStart": 28,
+        "timestampEnd": 54,
+        "timestampLabel": "00:28–00:54",
+        "type": "low_original_contribution",
+        "category": "reused_content",
+        "severity": "warning",
+        "confidence": 0.84,
+        "source": "scene_diff",
+        "label": "🟡 Limited Transformation Signals",
+        "details": "Segment plays without voiceover commentary or critical reaction overlay."
+      },
+      {
+        "id": "ev_scan_1791426947841_bx5l5_4",
+        "scanId": "scan_1791426947841_bx5l5",
+        "timestampStart": 66,
+        "timestampEnd": 86,
+        "timestampLabel": "01:06–01:26",
+        "type": "repeated_visual_pattern",
+        "category": "inauthentic_pattern",
+        "severity": "warning",
+        "confidence": 0.78,
+        "source": "scene_diff",
+        "label": "🟡 Template-like Sequence / Repetitive Pacing",
+        "details": "Repeated visual sequence or predictable transition cycle detected resembling mass-produced clip assembly."
+      }
+    ],
+    "scan_1791427270758_na8u8": [
+      {
+        "id": "ev_scan_1791427270758_na8u8_1",
+        "scanId": "scan_1791427270758_na8u8",
+        "timestampStart": 0,
+        "timestampEnd": 10,
+        "timestampLabel": "00:00–00:10",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.92,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voice Narration Detected",
+        "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+      }
+    ],
+    "scan_1791427273795_tqt9n": [
+      {
+        "id": "ev_scan_1791427273795_tqt9n_1",
+        "scanId": "scan_1791427273795_tqt9n",
+        "timestampStart": 0,
+        "timestampEnd": 5,
+        "timestampLabel": "00:00–00:05",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.92,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voice Narration Detected",
+        "details": "Acoustic energy identified creator voice presence (00:00–00:05)."
+      }
+    ],
+    "scan_1791427278375_5pfz2": [
+      {
+        "id": "ev_scan_1791427278375_5pfz2_1",
+        "scanId": "scan_1791427278375_5pfz2",
+        "timestampStart": 0,
+        "timestampEnd": 6,
+        "timestampLabel": "00:00–00:06",
+        "type": "low_original_contribution",
+        "category": "original_contribution",
+        "severity": "high",
+        "confidence": 0.95,
+        "source": "audio_spectrum",
+        "label": "🔴 Unaccompanied Audio: Absence of Creator Narration",
+        "details": "No vocal commentary or narrative voice identified. Track relies exclusively on background music or ambient sound."
+      },
+      {
+        "id": "ev_scan_1791427278375_5pfz2_2",
+        "scanId": "scan_1791427278375_5pfz2",
+        "timestampStart": 0,
+        "timestampEnd": 6,
+        "timestampLabel": "00:00–00:06",
+        "type": "low_original_contribution",
+        "category": "original_contribution",
+        "severity": "warning",
+        "confidence": 0.85,
+        "source": "silence_detect",
+        "label": "🟡 Extended Silence / Unedited Segment",
+        "details": "Prolonged silence gap of 6s detected. May cause viewer drop-off or automated quality demotion."
+      }
+    ],
+    "scan_1791427280915_fwtn3": [
+      {
+        "id": "ev_scan_1791427280915_fwtn3_1",
+        "scanId": "scan_1791427280915_fwtn3",
+        "timestampStart": 0,
+        "timestampEnd": 10,
+        "timestampLabel": "00:00–00:10",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.92,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voice Narration Detected",
+        "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+      }
+    ],
+    "scan_rescan_1791427280925": [
+      {
+        "id": "ev_scan_rescan_1791427280925_1",
+        "scanId": "scan_rescan_1791427280925",
+        "timestampStart": 0,
+        "timestampEnd": 10,
+        "timestampLabel": "00:00–00:10",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.92,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voice Narration Detected",
+        "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+      }
+    ],
+    "scan_1791431612938_3g8g9": [
+      {
+        "id": "ev_scan_1791431612938_3g8g9_1",
+        "scanId": "scan_1791431612938_3g8g9",
+        "timestampStart": 0,
+        "timestampEnd": 10,
+        "timestampLabel": "00:00–00:10",
+        "type": "original_narration",
+        "category": "original_contribution",
+        "severity": "info",
+        "confidence": 0.92,
+        "source": "audio_spectrum",
+        "label": "🟢 Original Voice Narration Detected",
+        "details": "Acoustic energy identified creator voice presence (00:00–00:10)."
+      }
+    ]
+  },
+  "comparisons": {
+    "scan_rescan_1791425881505": {
+      "originalScanId": "scan_demo_1791425879047",
+      "revisedScanId": "scan_rescan_1791425881505",
+      "originalRisk": "HIGH_RISK",
+      "revisedRisk": "LOW_RISK",
+      "originalSignalsCount": 4,
+      "revisedSignalsCount": 1,
+      "signalsDelta": -3,
+      "resolvedIssues": [
+        "Discrepancy between title promise and opening video content",
+        "Repetitive montage or template-like scene structure"
+      ],
+      "remainingIssues": [
+        "00:43–01:00: Visually similar third-party sequence with minimal voiceover overlay"
+      ],
+      "improvements": [
+        "Original commentary and voiceover increased from 58% to 86%",
+        "Unaccompanied third-party footage reduced from 38% down to 14%",
+        "Transformation score boosted by +43 points through active narrative framing",
+        "Overall risk downgraded from High Risk to Low Risk"
+      ],
+      "comparisonSummary": "Re-scan completed successfully. Resolved 2 prior risk signal(s). Your video demonstrates significantly stronger original contribution.",
+      "originalRatios": {
+        "originalContribution": 58,
+        "reusedContent": 38
+      },
+      "revisedRatios": {
+        "originalContribution": 86,
+        "reusedContent": 14
+      }
+    },
+    "scan_rescan_1791427280925": {
+      "originalScanId": "scan_1791427270758_na8u8",
+      "revisedScanId": "scan_rescan_1791427280925",
+      "originalRisk": "LOW_RISK",
+      "revisedRisk": "LOW_RISK",
+      "originalSignalsCount": 0,
+      "revisedSignalsCount": 0,
+      "signalsDelta": 0,
+      "resolvedIssues": [
+        "Re-scan completed with updated audio track"
+      ],
+      "remainingIssues": [],
+      "improvements": [
+        "Video re-scanned and verified against platform baseline"
+      ],
+      "comparisonSummary": "Re-scan completed. Risk profile updated based on revised timeline.",
+      "originalRatios": {
+        "originalContribution": 70,
+        "reusedContent": 0
+      },
+      "revisedRatios": {
+        "originalContribution": 70,
+        "reusedContent": 0
+      }
+    }
+  },
+  "usage": [
+    {
+      "userId": "user_default",
+      "scanId": "scan_demo_1791425879047",
+      "durationMinutes": 2,
+      "creditsDeducted": 2,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:17:59.186Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_rescan_1791425881505",
+      "durationMinutes": 2,
+      "creditsDeducted": 2,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:18:01.594Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791426945284_xgf91",
+      "durationMinutes": 2,
+      "creditsDeducted": 2,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:35:45.381Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791426947833_z0590",
+      "durationMinutes": 2,
+      "creditsDeducted": 2,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:35:47.944Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791426947841_bx5l5",
+      "durationMinutes": 2,
+      "creditsDeducted": 2,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:35:47.949Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791427270758_na8u8",
+      "durationMinutes": 1,
+      "creditsDeducted": 1,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:41:10.884Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791427273795_tqt9n",
+      "durationMinutes": 1,
+      "creditsDeducted": 1,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:41:16.187Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791427278375_5pfz2",
+      "durationMinutes": 1,
+      "creditsDeducted": 1,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:41:18.470Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791427280915_fwtn3",
+      "durationMinutes": 1,
+      "creditsDeducted": 1,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:41:21.018Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_rescan_1791427280925",
+      "durationMinutes": 1,
+      "creditsDeducted": 1,
+      "mode": "standard",
+      "timestamp": "2026-10-08T02:41:21.033Z"
+    },
+    {
+      "userId": "user_default",
+      "scanId": "scan_1791431612938_3g8g9",
+      "durationMinutes": 1,
+      "creditsDeducted": 1,
+      "mode": "standard",
+      "timestamp": "2026-10-08T03:53:33.061Z"
+    }
+  ],
+  "webhookEvents": {
+    "evt_test_checkout_1791431593426": {
+      "eventId": "evt_test_checkout_1791431593426",
+      "provider": "stripe",
+      "eventType": "checkout.session.completed",
+      "processedAt": "2026-10-08T03:53:13.431Z",
+      "userId": "user_default",
+      "creditsGranted": 30,
+      "planGranted": "creator"
+    },
+    "evt_test_audit_1791431593459": {
+      "eventId": "evt_test_audit_1791431593459",
+      "provider": "stripe",
+      "eventType": "checkout.session.completed",
+      "processedAt": "2026-10-08T03:53:13.464Z",
+      "userId": "user_default",
+      "creditsGranted": 60,
+      "planGranted": "audit_once"
+    },
+    "evt_test_renewal_1791431593478": {
+      "eventId": "evt_test_renewal_1791431593478",
+      "provider": "stripe",
+      "eventType": "invoice.paid",
+      "processedAt": "2026-10-08T03:53:13.481Z",
+      "userId": "user_default",
+      "creditsGranted": 30,
+      "planGranted": "creator"
+    },
+    "evt_test_failed_1791431593492": {
+      "eventId": "evt_test_failed_1791431593492",
+      "provider": "stripe",
+      "eventType": "invoice.payment_failed",
+      "processedAt": "2026-10-08T03:53:13.496Z"
+    },
+    "evt_test_cancel_1791431593501": {
+      "eventId": "evt_test_cancel_1791431593501",
+      "provider": "stripe",
+      "eventType": "customer.subscription.deleted",
+      "processedAt": "2026-10-08T03:53:13.506Z"
+    },
+    "evt_test_checkout_1791431612846": {
+      "eventId": "evt_test_checkout_1791431612846",
+      "provider": "stripe",
+      "eventType": "checkout.session.completed",
+      "processedAt": "2026-10-08T03:53:32.853Z",
+      "userId": "user_default",
+      "creditsGranted": 30,
+      "planGranted": "creator"
+    },
+    "evt_test_audit_1791431612874": {
+      "eventId": "evt_test_audit_1791431612874",
+      "provider": "stripe",
+      "eventType": "checkout.session.completed",
+      "processedAt": "2026-10-08T03:53:32.878Z",
+      "userId": "user_default",
+      "creditsGranted": 60,
+      "planGranted": "audit_once"
+    },
+    "evt_test_renewal_1791431612899": {
+      "eventId": "evt_test_renewal_1791431612899",
+      "provider": "stripe",
+      "eventType": "invoice.paid",
+      "processedAt": "2026-10-08T03:53:32.903Z",
+      "userId": "user_default",
+      "creditsGranted": 30,
+      "planGranted": "creator"
+    },
+    "evt_test_failed_1791431612914": {
+      "eventId": "evt_test_failed_1791431612914",
+      "provider": "stripe",
+      "eventType": "invoice.payment_failed",
+      "processedAt": "2026-10-08T03:53:32.919Z"
+    },
+    "evt_test_cancel_1791431612924": {
+      "eventId": "evt_test_cancel_1791431612924",
+      "provider": "stripe",
+      "eventType": "customer.subscription.deleted",
+      "processedAt": "2026-10-08T03:53:32.929Z"
+    },
+    "sim_evt_sim_123": {
+      "eventId": "sim_evt_sim_123",
+      "provider": "stripe",
+      "eventType": "checkout.session.completed",
+      "processedAt": "2026-10-08T04:01:27.012Z",
+      "userId": "user_default",
+      "creditsGranted": 30,
+      "planGranted": "creator"
+    }
+  },
+  "subscriptions": {
+    "sub_test_videorisk_456": {
+      "id": "sub_test_videorisk_456",
+      "userId": "user_default",
+      "planId": "creator",
+      "status": "canceled",
+      "createdAt": "2026-10-08T03:53:32.852Z",
+      "updatedAt": "2026-10-08T03:53:32.926Z"
+    }
+  }
+}

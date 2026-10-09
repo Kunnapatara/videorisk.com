@@ -1,0 +1,117 @@
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs';
+import { MediaMetadata } from '../../types';
+
+const execFileAsync = promisify(execFile);
+
+export class MediaInspectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MediaInspectionError';
+  }
+}
+
+export class MediaInspector {
+  /**
+   * Real media inspection using ffprobe via execFile (zero shell invocation)
+   */
+  public async inspect(filePath: string, originalFilename: string): Promise<MediaMetadata> {
+    if (!fs.existsSync(filePath)) {
+      throw new MediaInspectionError(`Media file not found at ${filePath}`);
+    }
+
+    const stats = await fs.promises.stat(filePath);
+    const originalSize = stats.size;
+
+    if (originalSize === 0) {
+      throw new MediaInspectionError('Uploaded video file is empty (0 bytes).');
+    }
+
+    // Arguments passed directly to ffprobe binary without shell expansion
+    const args = [
+      '-v', 'error',
+      '-show_entries', 'format=duration,size,bit_rate:stream=index,codec_type,codec_name,width,height,r_frame_rate,channels',
+      '-print_format', 'json',
+      filePath
+    ];
+
+    try {
+      const { stdout } = await execFileAsync('ffprobe', args, { timeout: 15000 });
+      const parsed = JSON.parse(stdout);
+
+      const format = parsed.format || {};
+      const streams = parsed.streams || [];
+
+      const videoStream = streams.find((s: any) => s.codec_type === 'video');
+      const audioStream = streams.find((s: any) => s.codec_type === 'audio');
+
+      if (!videoStream && !audioStream) {
+        throw new MediaInspectionError('No valid video or audio streams found in container.');
+      }
+
+      let duration = parseFloat(format.duration || '0');
+      if (isNaN(duration) || duration <= 0) {
+        if (videoStream?.duration) {
+          duration = parseFloat(videoStream.duration);
+        } else if (audioStream?.duration) {
+          duration = parseFloat(audioStream.duration);
+        }
+      }
+
+      if (duration <= 0 || isNaN(duration)) {
+        throw new MediaInspectionError('Could not determine valid duration for media container.');
+      }
+
+      const width = videoStream?.width || 1920;
+      const height = videoStream?.height || 1080;
+      
+      let fps = 30;
+      if (videoStream?.r_frame_rate) {
+        const parts = videoStream.r_frame_rate.split('/');
+        if (parts.length === 2 && parseFloat(parts[1]) > 0) {
+          fps = Math.round(parseFloat(parts[0]) / parseFloat(parts[1]));
+        }
+      }
+
+      let resolutionLabel = '1080p Full HD';
+      if (width >= 3840 || height >= 2160) {
+        resolutionLabel = '4K Ultra HD';
+      } else if (width >= 2560 || height >= 1440) {
+        resolutionLabel = '1440p Quad HD';
+      } else if (width >= 1920 || height >= 1080) {
+        resolutionLabel = '1080p Full HD';
+      } else if (width >= 1280 || height >= 720) {
+        resolutionLabel = '720p HD';
+      } else {
+        resolutionLabel = `${width}x${height}`;
+      }
+
+      const hasAudio = !!audioStream;
+      const isProxyNeeded = (width > 1920 || height > 1080);
+
+      return {
+        filename: originalFilename,
+        originalSize,
+        durationSeconds: Math.max(1, Math.round(duration)),
+        width,
+        height,
+        resolutionLabel,
+        fps: fps || 30,
+        hasAudio,
+        audioCodec: audioStream?.codec_name,
+        videoCodec: videoStream?.codec_name,
+        isProxyUsed: isProxyNeeded,
+      };
+    } catch (err: any) {
+      if (err instanceof MediaInspectionError) {
+        throw err;
+      }
+      throw new MediaInspectionError(
+        `Failed to decode media file: ${err?.message || 'Unsupported or corrupted video format.'}`
+      );
+    }
+  }
+}
+
+export const mediaInspector = new MediaInspector();
