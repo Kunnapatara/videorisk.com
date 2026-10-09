@@ -3,9 +3,10 @@ import { mediaInspector, MediaInspectionError } from './mediaInspector';
 import { proxyGenerator } from './proxyGenerator';
 import { audioProcessor } from './audioProcessor';
 import { videoProcessor } from './videoProcessor';
+import { thumbnailInspector } from './thumbnailInspector';
 import { policyIntelligenceEngine } from '../intelligence/policyIntelligence';
 import { creditService } from '../services/creditService';
-import { ScanJob, ScanStage, JobStatus } from '../../types';
+import { ScanJob, ScanStage, JobStatus, ThumbnailMetadata } from '../../types';
 
 export class JobOrchestrator {
   private activeJobs = new Set<string>();
@@ -126,6 +127,20 @@ export class JobOrchestrator {
         currentStage: 'Visual evidence',
         completedStages: ['Upload', 'Media inspection', 'Audio & transcript', 'Scene analysis']
       });
+
+      // Thumbnail Inspection if provided
+      let thumbnailMetadata: ThumbnailMetadata | null = null;
+      if (scan.thumbnailPath && scan.thumbnailFilename) {
+        try {
+          thumbnailMetadata = await thumbnailInspector.inspect(scan.thumbnailPath, scan.thumbnailFilename);
+        } catch (thumbErr) {
+          console.warn('[JobOrchestrator] Thumbnail inspection error:', thumbErr);
+        }
+      }
+
+      // Fetch Channel Context Profile snapshot if exists for user
+      const channelProfile = await storage.channelProfiles.getProfile(scan.userId);
+
       const evidenceStart = Date.now();
       const timeline = policyIntelligenceEngine.generateEvidenceTimeline({
         scanId,
@@ -135,6 +150,9 @@ export class JobOrchestrator {
         videoResult,
         videoTitle: scan.videoTitle,
         videoDescription: scan.videoDescription,
+        videoTags: scan.videoTags,
+        thumbnailMetadata,
+        channelProfile,
         isRescan: scan.isRescan,
       });
       await storage.evidence.saveEvidence(scanId, timeline);
@@ -165,6 +183,9 @@ export class JobOrchestrator {
         videoResult,
         videoTitle: scan.videoTitle,
         videoDescription: scan.videoDescription,
+        videoTags: scan.videoTags,
+        thumbnailMetadata,
+        channelProfile,
         isRescan: scan.isRescan,
       }, timeline);
 
@@ -180,6 +201,12 @@ export class JobOrchestrator {
       };
 
       await storage.scans.saveReport(scanId, report);
+
+      // Save thumbnail metadata and channel profile snapshot on scan job record
+      await storage.scans.updateScan(scanId, {
+        thumbnailMetadata: thumbnailMetadata || undefined,
+        channelProfileSnapshot: channelProfile || undefined,
+      });
 
       // If this is a re-scan, generate and save the comparison with parent scan
       if (scan.parentScanId) {

@@ -4,9 +4,9 @@
       "id": "user_default",
       "email": "creator@videorisk.com",
       "plan": "creator",
-      "creditsRemaining": 324,
+      "creditsRemaining": 326,
       "creditsUsedTotal": 12,
-      "totalScansCount": 13,
+      "totalScansCount": 15,
       "createdAt": "2026-10-08T02:17:59.047Z",
       "stripeCustomerId": "cus_test_videorisk_123",
       "subscriptionId": "sub_test_videorisk_456",
@@ -46,6 +46,28 @@
       "createdAt": "2026-10-09T01:45:41.497Z",
       "passwordHash": "76ec4f4be4df2a0106f1df46fcbc94668dcabd38c5156a2650cdc3f8fcd60573d66092177f6f29559d0d136c5d177caac77790cdb77dbdc5fbd9187e58be9eb8",
       "salt": "a596267c2128a60d53d0d65dbf3feb53"
+    },
+    "user_1791511568752_e7f9851d": {
+      "id": "user_1791511568752_e7f9851d",
+      "email": "test_user_1791511568687@videorisk.com",
+      "plan": "free",
+      "creditsRemaining": 10,
+      "creditsUsedTotal": 0,
+      "totalScansCount": 0,
+      "createdAt": "2026-10-09T02:06:08.752Z",
+      "passwordHash": "828aa7fc5d0aa7caccee40a59b49fa62637409f0dd2d9cf80c81c68ce566d095d6c746f2220046892ca0d1cf98bc80d4417a6d54fca3237759fc078d20b54dcb",
+      "salt": "912eb6422b34a0f021ded0a884c2f3c2"
+    },
+    "user_1791511597681_ed01aec7": {
+      "id": "user_1791511597681_ed01aec7",
+      "email": "test_user_1791511597615@videorisk.com",
+      "plan": "free",
+      "creditsRemaining": 10,
+      "creditsUsedTotal": 0,
+      "totalScansCount": 0,
+      "createdAt": "2026-10-09T02:06:37.681Z",
+      "passwordHash": "5f9c593e4dfc789bbafad40623a7b138b0808dc52098641bd278dbadb371889e72086b1adf934e1d78fd351213a936732f0dbdcbf0b5eb0c7728f28ebb54f810",
+      "salt": "1292044f7a4e047e87e44c9086d52edc"
     }
   },
   "sessions": {
@@ -66,6 +88,58 @@
       "userId": "user_pro",
       "createdAt": "2026-10-09T01:45:41.529Z",
       "expiresAt": "2026-11-08T01:45:41.529Z"
+    },
+    "vr_sess_ccd59b58a92a826296ce383dd6349d97557d132889d90eac329dee54d96e6543": {
+      "token": "vr_sess_ccd59b58a92a826296ce383dd6349d97557d132889d90eac329dee54d96e6543",
+      "userId": "user_default",
+      "createdAt": "2026-10-09T02:05:48.697Z",
+      "expiresAt": "2026-11-08T02:05:48.696Z"
+    },
+    "vr_sess_15afcc12b30d11863633efa0ddb4748331c10c8cdf0e1717040d41c2c64eb2ef": {
+      "token": "vr_sess_15afcc12b30d11863633efa0ddb4748331c10c8cdf0e1717040d41c2c64eb2ef",
+      "userId": "user_default",
+      "createdAt": "2026-10-09T02:06:08.665Z",
+      "expiresAt": "2026-11-08T02:06:08.665Z"
+    },
+    "vr_sess_be6c356d6b2d31f6fbc5412565b59af912b47d0ddaa6ae0d05e66b08108d9a23": {
+      "token": "vr_sess_be6c356d6b2d31f6fbc5412565b59af912b47d0ddaa6ae0d05e66b08108d9a23",
+      "userId": "user_1791511568752_e7f9851d",
+      "createdAt": "2026-10-09T02:06:08.753Z",
+      "expiresAt": "2026-11-08T02:06:08.753Z"
+    },
+    "vr_sess_2bf5b91efc0f1a5570a7dcb60902c792bff2c9d02870bb8fe1d182b6fd799b54": {
+      "token": "vr_sess_2bf5b91efc0f1a5570a7dcb60902c792bff2c9d02870bb8fe1d182b6fd799b54",
+      "userId": "user_default",
+      "createdAt": "2026-10-09T02:06:37.595Z",
+      "expiresAt": "2026-11-08T02:06:37.595Z"
+    },
+    "vr_sess_b1f33c5282ed5e7ffc43c2102770299f885bb6b4bc929ce87c767707afbe035a": {
+      "token": "vr_sess_b1f33c5282ed5e7ffc43c2102770299f885bb6b4bc929ce87c767707afbe035a",
+      "userId": "user_1791511597681_ed01aec7",
+      "createdAt": "2026-10-09T02:06:37.683Z",
+      "expiresAt": "2026-11-08T02:06:37.683Z"
+    },
+    "vr_sess_e59103361367b07a52fb78e8cbd7cca6b70446edb343a474cefad8079e9e66b8": {
+      "token": "vr_sess_e59103361367b07a52fb78e8cbd7cca6b70446edb343a474cefad8079e9e66b8",
+      "userId": "user_pro",
+      "createdAt": "2026-10-09T02:06:37.731Z",
+      "expiresAt": "2026-11-08T02:06:37.731Z"
+    }
+  },
+  "channelProfiles": {
+    "user_default": {
+      "id": "cp_user_default_1791511568784",
+      "userId": "user_default",
+      "version": 2,
+      "channelTopic": "Tech Analysis & Critique",
+      "contentType": "commentary",
+      "productionWorkflow": "Creator scripted commentary with original voice narration.",
+      "thirdPartyFootageUsage": "fair_use_commentary",
+      "originalVoiceNarration": "always",
+      "aiAssistedContent": false,
+      "aiDisclosureDetails": "",
+      "typicalSources": "Original screen recordings and licensed stock clips.",
+      "updatedAt": "2026-10-09T02:06:37.716Z"
     }
   },
   "scans": {
@@ -514,14 +588,34 @@
       "videoFilename": "Top10_Gaming_Montage_With_Clips.mp4",
       "videoPath": "/app/applet/uploads/demo_1791510341434_Top10_Gaming_Montage_With_Clips.mp4",
       "scanMode": "standard",
-      "status": "INSPECTING",
+      "status": "FAILED",
       "currentStage": "Media inspection",
       "completedStages": [
         "Upload"
       ],
       "creditsUsed": 2,
       "createdAt": "2026-10-09T01:45:41.434Z",
-      "isRescan": false
+      "isRescan": false,
+      "error": "Failed to decode media file: Command failed: ffprobe -v error -show_entries format=duration,size,bit_rate:stream=index,codec_type,codec_name,width,height,r_frame_rate,channels -print_format json /app/applet/uploads/demo_1791510341434_Top10_Gaming_Montage_With_Clips.mp4\n[mov,mp4,m4a,3gp,3g2,mj2 @ 0x563b904e3f40] moov atom not found\n/app/applet/uploads/demo_1791510341434_Top10_Gaming_Montage_With_Clips.mp4: Invalid data found when processing input\n"
+    },
+    "undefined": {
+      "userId": "user_default",
+      "videoTitle": "User 1 Confidential Documentary",
+      "videoFilename": "doc_cut_v1.mp4",
+      "videoPath": "/uploads/doc_cut_v1.mp4",
+      "scanMode": "standard",
+      "status": "COMPLETED",
+      "currentStage": "COMPLETE",
+      "completedStages": [
+        "INSPECT",
+        "AUDIO",
+        "VIDEO",
+        "EVIDENCE",
+        "POLICY",
+        "COMPLETE"
+      ],
+      "creditsUsed": 15,
+      "createdAt": "2026-10-09T02:06:37.686Z"
     }
   },
   "reports": {

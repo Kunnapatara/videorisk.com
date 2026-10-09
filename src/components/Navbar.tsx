@@ -15,8 +15,8 @@ import {
 import { UserAccount } from '../types';
 
 interface NavbarProps {
-  activeTab: 'home' | 'upload' | 'history' | 'pricing';
-  setActiveTab: (tab: 'home' | 'upload' | 'history' | 'pricing') => void;
+  activeTab: 'home' | 'upload' | 'history' | 'pricing' | 'channel';
+  setActiveTab: (tab: 'home' | 'upload' | 'history' | 'pricing' | 'channel') => void;
   user: UserAccount | null;
   onNewScan: () => void;
   onOpenAuth: () => void;
@@ -31,7 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleNavClick = (tab: 'home' | 'upload' | 'history' | 'pricing') => {
+  const handleNavClick = (tab: 'home' | 'upload' | 'history' | 'pricing' | 'channel') => {
     setActiveTab(tab);
     setMobileMenuOpen(false);
   };
@@ -100,6 +100,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             }`}
           >
             Scans Archive
+          </button>
+
+          <button
+            onClick={() => handleNavClick('channel')}
+            className={`px-3 py-2 rounded-lg transition-all ${
+              activeTab === 'channel' 
+                ? 'text-white bg-stone-800/80 shadow-xs' 
+                : 'text-stone-300 hover:text-white hover:bg-stone-900'
+            }`}
+          >
+            Channel Context
           </button>
 
           <button
@@ -249,6 +260,18 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <span>Scans Archive</span>
               <span className="text-xs text-stone-500">History</span>
+            </button>
+
+            <button
+              onClick={() => handleNavClick('channel')}
+              className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-semibold transition-colors flex items-center justify-between ${
+                activeTab === 'channel'
+                  ? 'bg-rose-600/15 text-rose-400 font-bold border border-rose-600/30'
+                  : 'text-stone-300 hover:bg-stone-900 hover:text-white'
+              }`}
+            >
+              <span>Channel Context</span>
+              <span className="text-xs text-stone-500">Patterns</span>
             </button>
 
             <button

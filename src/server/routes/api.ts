@@ -6,9 +6,10 @@ import crypto from 'crypto';
 import { storage } from '../storage';
 import { jobOrchestrator } from '../pipeline/jobOrchestrator';
 import { mediaInspector } from '../pipeline/mediaInspector';
+import { thumbnailInspector } from '../pipeline/thumbnailInspector';
 import { creditService } from '../services/creditService';
 import { billingService } from '../services/billingService';
-import { ScanJob, ScanMode, UserAccount } from '../../types';
+import { ScanJob, ScanMode, UserAccount, CrossVideoPattern } from '../../types';
 
 export const apiRouter = Router();
 
@@ -18,7 +19,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer upload config with security checks
+// Multer upload config for video media
 const storageConfig = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -44,6 +45,36 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error('Invalid video format. Supported formats: MP4, MOV, WebM, MKV.'));
+    }
+  }
+});
+
+// Multer upload config for thumbnail images
+const thumbnailStorageConfig = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const sanitizedExt = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `thumb_${uniqueSuffix}${sanitizedExt}`);
+  }
+});
+
+const uploadThumbnail = multer({
+  storage: thumbnailStorageConfig,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB max image size
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+
+    if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid thumbnail format. Supported image formats: JPEG, PNG, WebP.'));
     }
   }
 });
@@ -192,8 +223,10 @@ apiRouter.post('/auth/logout', async (req: Request, res: Response) => {
 apiRouter.get('/auth/me', async (req: Request, res: Response) => {
   try {
     const user = await getUserFromRequest(req);
+    const safe = sanitizeUser(user);
     res.json({
-      user: sanitizeUser(user)
+      ...safe,
+      user: safe
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to retrieve session user.' });
@@ -217,6 +250,32 @@ apiRouter.get('/auth/accounts', async (req: Request, res: Response) => {
 });
 
 apiRouter.post('/auth/switch-account', async (req: Request, res: Response) => {
+  try {
+    const { userId, email } = req.body;
+    let targetUser: UserAccount | null = null;
+
+    if (userId) {
+      targetUser = await storage.users.getUser(userId);
+    } else if (email) {
+      targetUser = await storage.users.getUserByEmail(email);
+    }
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Target account not found.' });
+    }
+
+    const sessionToken = await storage.users.createSession(targetUser.id);
+    res.json({
+      user: sanitizeUser(targetUser),
+      token: sessionToken,
+      message: `Switched account to ${targetUser.email}`
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to switch account.' });
+  }
+});
+
+apiRouter.post('/auth/switch-demo-user', async (req: Request, res: Response) => {
   try {
     const { userId, email } = req.body;
     let targetUser: UserAccount | null = null;
@@ -382,7 +441,125 @@ apiRouter.post('/uploads', upload.single('video'), async (req: Request, res: Res
   }
 });
 
-// 6. Create Scan (with Path Traversal, Ownership & Credit Checks)
+// 5b. Upload Thumbnail Image
+apiRouter.post('/uploads/thumbnail', uploadThumbnail.single('thumbnail'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No thumbnail image file provided.' });
+    }
+
+    const filePath = req.file.path;
+    const thumbnailMetadata = await thumbnailInspector.inspect(filePath, req.file.originalname);
+
+    res.json({
+      fileId: path.basename(filePath),
+      filePath,
+      filename: req.file.originalname,
+      thumbnailMetadata
+    });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || 'Failed to inspect uploaded thumbnail image.' });
+  }
+});
+
+// 6. Channel Context Profile Endpoints (User-Owned & Scoped)
+apiRouter.get('/channel/profile', async (req: Request, res: Response) => {
+  try {
+    const user = await getUserFromRequest(req);
+    const profile = await storage.channelProfiles.getProfile(user.id);
+    res.json(profile);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve channel context profile.' });
+  }
+});
+
+apiRouter.put('/channel/profile', async (req: Request, res: Response) => {
+  try {
+    const user = await getUserFromRequest(req);
+    const updated = await storage.channelProfiles.saveProfile(user.id, req.body);
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to save channel context profile.' });
+  }
+});
+
+apiRouter.delete('/channel/profile', async (req: Request, res: Response) => {
+  try {
+    const user = await getUserFromRequest(req);
+    const deleted = await storage.channelProfiles.deleteProfile(user.id);
+    res.json({ success: deleted });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to delete channel context profile.' });
+  }
+});
+
+// 6b. Cross-Video Recurring Patterns (Scoped strictly to user's authorized scan history)
+apiRouter.get('/channel/patterns', async (req: Request, res: Response) => {
+  try {
+    const user = await getUserFromRequest(req);
+    const userScans = await storage.scans.getAllScans(user.id);
+    const completedScans = userScans.filter(s => s.status === 'COMPLETED');
+
+    const patterns: CrossVideoPattern[] = [];
+    const sampleSize = completedScans.length;
+
+    if (sampleSize >= 2) {
+      // 1. Analyze recurring lack of voiceover
+      let lowVoiceCount = 0;
+      let titleMismatchCount = 0;
+
+      for (const s of completedScans) {
+        const report = await storage.scans.getReport(s.id);
+        if (report) {
+          if (report.originalContributionRatio < 20) {
+            lowVoiceCount++;
+          }
+          if (report.topIssues.some(i => i.domain === 'title' && i.category === 'metadata_coherence')) {
+            titleMismatchCount++;
+          }
+        }
+      }
+
+      if (lowVoiceCount >= 2) {
+        patterns.push({
+          id: 'pat_reused_signal',
+          patternType: 'repeated_reused_signal',
+          label: 'Recurring Absence of Creator Commentary',
+          severity: 'warning',
+          frequency: parseFloat(((lowVoiceCount / sampleSize) * 100).toFixed(0)),
+          affectedScansCount: lowVoiceCount,
+          explanation: `In ${lowVoiceCount} of your ${sampleSize} analyzed videos, audio tracks lacked an identifiable creator voice track.`,
+          recommendation: 'Adding consistent spoken perspective or voiceover transforms material under YouTube YPP reused-content policies.',
+          disclaimer: 'Observed pattern across your uploaded video sample; not an automated channel-wide YouTube audit.'
+        });
+      }
+
+      if (titleMismatchCount >= 2) {
+        patterns.push({
+          id: 'pat_metadata_gap',
+          patternType: 'title_content_mismatch',
+          label: 'Recurring Title-to-Content Pacing Gap',
+          severity: 'warning',
+          frequency: parseFloat(((titleMismatchCount / sampleSize) * 100).toFixed(0)),
+          affectedScansCount: titleMismatchCount,
+          explanation: `In ${titleMismatchCount} of ${sampleSize} videos, titles suggested case studies while opening sequences lacked direct spoken hooks.`,
+          recommendation: 'Ensure video openings immediately connect to the topic promised in the title.',
+          disclaimer: 'Observed pattern across your uploaded video sample; not an automated channel-wide YouTube audit.'
+        });
+      }
+    }
+
+    res.json({
+      sampleSize,
+      patterns,
+      disclaimer: 'Cross-video insights reflect patterns in your authorized uploaded scans only. YouTube Studio remains the authoritative destination for platform checks.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to compute cross-video patterns.' });
+  }
+});
+
+// 7. Create Scan (with Path Traversal, Ownership, Publishing Package & Credit Checks)
 apiRouter.post('/scans', async (req: Request, res: Response) => {
   try {
     const { 
@@ -390,6 +567,9 @@ apiRouter.post('/scans', async (req: Request, res: Response) => {
       videoFilename, 
       videoTitle, 
       videoDescription, 
+      videoTags,
+      thumbnailPath,
+      thumbnailFilename,
       scanMode = 'standard',
       parentScanId,
       isRescan = false
@@ -399,9 +579,14 @@ apiRouter.post('/scans', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Valid video file path is required.' });
     }
 
-    // Security: Path Traversal Protection
+    // Security: Path Traversal Protection for video
     if (!isSafeUploadPath(videoPath)) {
       return res.status(403).json({ error: 'Access denied: Invalid or unauthorized video path.' });
+    }
+
+    // Security: Path Traversal Protection for optional thumbnail
+    if (thumbnailPath && !isSafeUploadPath(thumbnailPath)) {
+      return res.status(403).json({ error: 'Access denied: Invalid or unauthorized thumbnail path.' });
     }
 
     const user = await getUserFromRequest(req);
@@ -432,8 +617,11 @@ apiRouter.post('/scans', async (req: Request, res: Response) => {
       userId: user.id,
       videoTitle: videoTitle || videoFilename || 'Untitled Video',
       videoDescription: videoDescription || '',
+      videoTags: Array.isArray(videoTags) ? videoTags : undefined,
       videoFilename: videoFilename || path.basename(videoPath),
       videoPath,
+      thumbnailPath: thumbnailPath || undefined,
+      thumbnailFilename: thumbnailFilename || undefined,
       scanMode: (scanMode === 'deep' ? 'deep' : 'standard') as ScanMode,
       status: 'QUEUED',
       currentStage: 'Upload',
@@ -455,10 +643,17 @@ apiRouter.post('/scans', async (req: Request, res: Response) => {
   }
 });
 
-// 7. Create Demo Scan (Quick Creator Playground with Strict User Ownership)
+// 8. Create Demo Scan (Quick Creator Playground with Strict User Ownership)
 apiRouter.post('/scans/demo', async (req: Request, res: Response) => {
   try {
-    const { demoType = 'problematic', scanMode = 'standard' } = req.body;
+    const { 
+      demoType = 'problematic', 
+      scanMode = 'standard',
+      videoTitle,
+      videoDescription,
+      hasThumbnail = false
+    } = req.body;
+    
     const user = await getUserFromRequest(req);
 
     if (user.creditsRemaining <= 0) {
@@ -475,18 +670,29 @@ apiRouter.post('/scans/demo', async (req: Request, res: Response) => {
     
     fs.writeFileSync(demoPath, 'VIDEORISK_SAMPLE_CONTAINER');
 
+    let demoThumbPath: string | undefined;
+    let demoThumbFilename: string | undefined;
+
+    if (hasThumbnail) {
+      demoThumbFilename = 'demo_thumbnail_16x9.jpg';
+      demoThumbPath = path.join(uploadDir, `demo_thumb_${Date.now()}.jpg`);
+      fs.writeFileSync(demoThumbPath, 'VIDEORISK_SAMPLE_THUMBNAIL');
+    }
+
     const scanId = `scan_demo_${Date.now()}`;
     const scanJob: ScanJob = {
       id: scanId,
       userId: user.id,
-      videoTitle: demoType === 'revised' 
+      videoTitle: videoTitle || (demoType === 'revised' 
         ? 'How I Actually Built a Business (Revised Cut with Commentary)' 
-        : 'How I Built a Real Business (Uncommentated Clips & Montage)',
-      videoDescription: demoType === 'revised'
+        : 'How I Built a Real Business (Uncommentated Clips & Montage)'),
+      videoDescription: videoDescription || (demoType === 'revised'
         ? 'In-depth original breakdown with voice commentary and critique of industry practices.'
-        : 'Compilation of business clips and stock footage showing business growth.',
+        : 'Compilation of business clips and stock footage showing business growth.'),
       videoFilename: demoFilename,
       videoPath: demoPath,
+      thumbnailPath: demoThumbPath,
+      thumbnailFilename: demoThumbFilename,
       scanMode: scanMode as ScanMode,
       status: 'QUEUED',
       currentStage: 'Upload',
@@ -506,7 +712,7 @@ apiRouter.post('/scans/demo', async (req: Request, res: Response) => {
   }
 });
 
-// 8. Get All Scans (Strict User Ownership: returns only requesting user's scans)
+// 9. Get All Scans (Strict User Ownership: returns only requesting user's scans)
 apiRouter.get('/scans', async (req: Request, res: Response) => {
   try {
     const user = await getUserFromRequest(req);
@@ -517,7 +723,7 @@ apiRouter.get('/scans', async (req: Request, res: Response) => {
   }
 });
 
-// 9. Get Single Scan Status (Strict IDOR protection: only scan owner may read)
+// 10. Get Single Scan Status (Strict IDOR protection: only scan owner may read)
 apiRouter.get('/scans/:id', async (req: Request, res: Response) => {
   try {
     const user = await getUserFromRequest(req);
@@ -534,7 +740,7 @@ apiRouter.get('/scans/:id', async (req: Request, res: Response) => {
   }
 });
 
-// 10. Get Evidence (Strict IDOR protection)
+// 11. Get Evidence (Strict IDOR protection)
 apiRouter.get('/scans/:id/evidence', async (req: Request, res: Response) => {
   try {
     const user = await getUserFromRequest(req);
@@ -552,7 +758,7 @@ apiRouter.get('/scans/:id/evidence', async (req: Request, res: Response) => {
   }
 });
 
-// 11. Get Report (Strict IDOR protection)
+// 12. Get Report (Strict IDOR protection)
 apiRouter.get('/scans/:id/report', async (req: Request, res: Response) => {
   try {
     const user = await getUserFromRequest(req);
@@ -573,7 +779,7 @@ apiRouter.get('/scans/:id/report', async (req: Request, res: Response) => {
   }
 });
 
-// 12. Re-scan Endpoint (Strict IDOR protection)
+// 13. Re-scan Endpoint (Strict IDOR protection)
 apiRouter.post('/scans/:id/rescan', upload.single('video'), async (req: Request, res: Response) => {
   try {
     const user = await getUserFromRequest(req);
@@ -616,6 +822,8 @@ apiRouter.post('/scans/:id/rescan', upload.single('video'), async (req: Request,
       videoDescription: parentScan.videoDescription,
       videoFilename: filename,
       videoPath: filePath,
+      thumbnailPath: parentScan.thumbnailPath,
+      thumbnailFilename: parentScan.thumbnailFilename,
       scanMode: parentScan.scanMode,
       status: 'QUEUED',
       currentStage: 'Upload',
@@ -635,7 +843,7 @@ apiRouter.post('/scans/:id/rescan', upload.single('video'), async (req: Request,
   }
 });
 
-// 13. Comparison Endpoint (Strict IDOR protection)
+// 14. Comparison Endpoint (Strict IDOR protection)
 apiRouter.get('/scans/:id/comparison', async (req: Request, res: Response) => {
   try {
     const user = await getUserFromRequest(req);

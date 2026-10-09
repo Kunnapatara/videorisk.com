@@ -7,12 +7,13 @@ import { ReportView } from './components/ReportView';
 import { ComparisonView } from './components/ComparisonView';
 import { HistoryView } from './components/HistoryView';
 import { PricingView } from './components/PricingView';
+import { ChannelProfileView } from './components/ChannelProfileView';
 import { AuthModal } from './components/AuthModal';
 import { UserAccount, RiskReport, ScanJob, ReScanComparison } from './types';
 import { authFetch } from './utils/api';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'home' | 'upload' | 'processing' | 'report' | 'comparison' | 'history' | 'pricing'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'upload' | 'processing' | 'report' | 'comparison' | 'history' | 'pricing' | 'channel'>('home');
   const [user, setUser] = useState<UserAccount | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -194,6 +195,18 @@ export function App() {
               onSelectScan={handleSelectHistoricalScan}
               onInitiateRescan={handleInitiateRescan}
               onNewScan={() => {
+                setRescanParentId(undefined);
+                setActiveTab('upload');
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'channel' && (
+          <div className="w-full">
+            <ChannelProfileView
+              user={user}
+              onStartScan={() => {
                 setRescanParentId(undefined);
                 setActiveTab('upload');
               }}

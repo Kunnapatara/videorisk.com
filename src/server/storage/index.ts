@@ -9,8 +9,15 @@ import {
   UserAccount,
   SubscriptionRecord,
   WebhookEventRecord,
-  AuthSessionRecord
+  AuthSessionRecord,
+  ChannelContextProfile
 } from '../../types';
+
+export interface IChannelProfileRepository {
+  getProfile(userId: string): Promise<ChannelContextProfile | null>;
+  saveProfile(userId: string, data: Partial<ChannelContextProfile>): Promise<ChannelContextProfile>;
+  deleteProfile(userId: string): Promise<boolean>;
+}
 
 export interface IUserRepository {
   getUser(id: string): Promise<UserAccount | null>;
@@ -59,6 +66,7 @@ export interface IBillingRepository {
 
 export interface IStorageRepository {
   users: IUserRepository;
+  channelProfiles: IChannelProfileRepository;
   scans: IScanRepository;
   evidence: IEvidenceRepository;
   usage: IUsageRepository;
@@ -71,6 +79,7 @@ class InMemoryStorageRepository implements IStorageRepository {
   private state: {
     users: Record<string, UserAccount>;
     sessions: Record<string, AuthSessionRecord>;
+    channelProfiles: Record<string, ChannelContextProfile>;
     scans: Record<string, ScanJob>;
     reports: Record<string, RiskReport>;
     evidence: Record<string, EvidenceItem[]>;
@@ -85,6 +94,7 @@ class InMemoryStorageRepository implements IStorageRepository {
     this.state = {
       users: {},
       sessions: {},
+      channelProfiles: {},
       scans: {},
       reports: {},
       evidence: {},
@@ -172,6 +182,7 @@ class InMemoryStorageRepository implements IStorageRepository {
         this.state = {
           users: parsed.users || {},
           sessions: parsed.sessions || {},
+          channelProfiles: parsed.channelProfiles || {},
           scans: parsed.scans || {},
           reports: parsed.reports || {},
           evidence: parsed.evidence || {},
@@ -479,6 +490,41 @@ class InMemoryStorageRepository implements IStorageRepository {
 
     getSubscriptionsByUserId: async (userId: string) => {
       return Object.values(this.state.subscriptions).filter(s => s.userId === userId);
+    }
+  };
+
+  public channelProfiles: IChannelProfileRepository = {
+    getProfile: async (userId: string) => {
+      return this.state.channelProfiles[userId] || null;
+    },
+    saveProfile: async (userId: string, data: Partial<ChannelContextProfile>) => {
+      const existing = this.state.channelProfiles[userId];
+      const version = existing ? existing.version + 1 : 1;
+      const profile: ChannelContextProfile = {
+        id: existing?.id || `cp_${userId}_${Date.now()}`,
+        userId,
+        version,
+        channelTopic: data.channelTopic ?? existing?.channelTopic ?? 'General Video Analysis',
+        contentType: data.contentType ?? existing?.contentType ?? 'commentary',
+        productionWorkflow: data.productionWorkflow ?? existing?.productionWorkflow ?? 'Creator scripted commentary with original voice narration.',
+        thirdPartyFootageUsage: data.thirdPartyFootageUsage ?? existing?.thirdPartyFootageUsage ?? 'fair_use_commentary',
+        originalVoiceNarration: data.originalVoiceNarration ?? existing?.originalVoiceNarration ?? 'always',
+        aiAssistedContent: data.aiAssistedContent ?? existing?.aiAssistedContent ?? false,
+        aiDisclosureDetails: data.aiDisclosureDetails ?? existing?.aiDisclosureDetails ?? '',
+        typicalSources: data.typicalSources ?? existing?.typicalSources ?? 'Original screen recordings and licensed stock clips.',
+        updatedAt: new Date().toISOString()
+      };
+      this.state.channelProfiles[userId] = profile;
+      this.save();
+      return profile;
+    },
+    deleteProfile: async (userId: string) => {
+      if (this.state.channelProfiles[userId]) {
+        delete this.state.channelProfiles[userId];
+        this.save();
+        return true;
+      }
+      return false;
     }
   };
 }
