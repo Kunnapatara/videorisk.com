@@ -466,6 +466,15 @@ apiRouter.get('/plans', async (req: Request, res: Response) => {
   }
 });
 
+apiRouter.get('/billing/plans', async (req: Request, res: Response) => {
+  try {
+    const plans = await storage.billing.getPlans();
+    res.json(plans);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve plans.' });
+  }
+});
+
 // 5. Upload & Pre-inspection (Protected)
 apiRouter.post('/uploads', upload.single('video'), async (req: Request, res: Response) => {
   try {
