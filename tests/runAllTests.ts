@@ -3,6 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import { runAuthAndOwnershipTests } from './auth_and_ownership.test';
 import { runProductCapabilitiesTests } from './product_capabilities.test';
+import { runPersistenceAndBillingHardeningTests } from './persistence_and_billing_hardening.test';
 
 async function main() {
   console.log('######################################################');
@@ -18,6 +19,9 @@ async function main() {
 
     // Run Suite 2
     await runProductCapabilitiesTests();
+
+    // Run Suite 3
+    await runPersistenceAndBillingHardeningTests();
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`\n🎉 ALL AUTOMATED VERIFICATION SUITES COMPLETED SUCCESSFULLY in ${elapsed}s!`);

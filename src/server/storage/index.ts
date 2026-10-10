@@ -89,11 +89,13 @@ export interface IStorageRepository {
   evidence: IEvidenceRepository;
   usage: IUsageRepository;
   billing: IBillingRepository;
+  runTransaction<T>(operation: (state: any) => Promise<T> | T): Promise<T>;
 }
 
 // In-Memory Storage with pure JSON file persistence (Zero SQLite, Zero native binary dependency)
 export class InMemoryStorageRepository implements IStorageRepository {
   private dataFile: string;
+  private writeLock: Promise<void> = Promise.resolve();
   private state: {
     users: Record<string, UserAccount>;
     sessions: Record<string, AuthSessionRecord>;
@@ -232,15 +234,44 @@ export class InMemoryStorageRepository implements IStorageRepository {
     }
   }
 
-  private save() {
+  public save() {
+    this.saveAtomic();
+  }
+
+  public saveAtomic() {
     try {
       const dir = path.dirname(this.dataFile);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      fs.writeFileSync(this.dataFile, JSON.stringify(this.state, null, 2), 'utf-8');
+      const tmpFile = `${this.dataFile}.${Date.now()}.${crypto.randomBytes(4).toString('hex')}.tmp`;
+      fs.writeFileSync(tmpFile, JSON.stringify(this.state, null, 2), 'utf-8');
+      fs.renameSync(tmpFile, this.dataFile);
     } catch (err) {
-      console.warn('[Storage] Failed to write store.json:', err);
+      console.warn('[Storage] Failed to atomically write store.json:', err);
+      throw err;
+    }
+  }
+
+  public async runTransaction<T>(operation: (state: typeof this.state) => Promise<T> | T): Promise<T> {
+    const previousLock = this.writeLock;
+    let releaseLock: () => void;
+    this.writeLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    await previousLock;
+
+    const stateSnapshot = JSON.stringify(this.state);
+    try {
+      const result = await operation(this.state);
+      this.saveAtomic();
+      return result;
+    } catch (err) {
+      this.state = JSON.parse(stateSnapshot);
+      throw err;
+    } finally {
+      releaseLock!();
     }
   }
 
@@ -279,6 +310,9 @@ export class InMemoryStorageRepository implements IStorageRepository {
       return newUser;
     },
     getOrCreateDefaultUser: async () => {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Default demo user is disabled in production.');
+      }
       const defaultId = 'user_default';
       if (!this.state.users[defaultId]) {
         this.seedDefaultUserIfNeeded();
@@ -325,14 +359,20 @@ export class InMemoryStorageRepository implements IStorageRepository {
       return true;
     },
     addCredits: async (userId: string, amount: number) => {
-      const user = this.state.users[userId] || await this.users.getOrCreateDefaultUser();
+      const user = this.state.users[userId];
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
       const cleanAmount = Math.max(0, Math.round(amount));
       user.creditsRemaining += cleanAmount;
       this.save();
       return user;
     },
     updatePlan: async (userId: string, plan: 'free' | 'creator' | 'pro' | 'agency', credits: number) => {
-      const user = this.state.users[userId] || await this.users.getOrCreateDefaultUser();
+      const user = this.state.users[userId];
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
       user.plan = plan;
       const cleanCredits = Math.max(0, Math.round(credits));
       user.creditsRemaining = Math.max(0, user.creditsRemaining) + cleanCredits;

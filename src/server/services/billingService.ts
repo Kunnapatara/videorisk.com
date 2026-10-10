@@ -2,6 +2,9 @@ import Stripe from 'stripe';
 import { storage } from '../storage';
 import { UserAccount, SubscriptionRecord, WebhookEventRecord } from '../../types';
 
+export const ALLOWED_PAID_PLANS = ['creator', 'pro', 'agency', 'audit_once'] as const;
+export type AllowedPaidPlan = typeof ALLOWED_PAID_PLANS[number];
+
 export interface CheckoutSessionOptions {
   userId: string;
   planId: string;
@@ -26,6 +29,10 @@ export class BillingService {
         console.error('[BillingService] FATAL: STRIPE_SECRET_KEY is missing in production environment!');
       }
     }
+  }
+
+  public isStripeClientConfigured(): boolean {
+    return !!this.stripe;
   }
 
   /**
@@ -58,7 +65,7 @@ export class BillingService {
   }
 
   /**
-   * Resolves configured price ID from environment or uses default product configuration
+   * Resolves configured price ID from environment
    */
   private getPriceIdForPlan(planId: string): string | null {
     switch (planId) {
@@ -81,8 +88,8 @@ export class BillingService {
   public async createCheckoutSession(options: CheckoutSessionOptions): Promise<{ url: string; sessionId: string; mode: string }> {
     const { userId, planId, originUrl } = options;
 
-    if (planId === 'free') {
-      throw new Error('Free plan does not require a payment session.');
+    if (!ALLOWED_PAID_PLANS.includes(planId as any)) {
+      throw new Error(`Invalid plan ID: ${planId}. Allowed paid plans are: ${ALLOWED_PAID_PLANS.join(', ')}`);
     }
 
     const user = await storage.users.getUser(userId);
@@ -101,12 +108,20 @@ export class BillingService {
       if (this.getStripeMode() !== 'live') {
         throw new Error('Production mode requires a Stripe LIVE key (sk_live_... or rk_live_...). Found test mode credentials.');
       }
+      const priceId = this.getPriceIdForPlan(planId);
+      if (!priceId) {
+        throw new Error(`Configured Stripe Price ID missing for plan '${planId}' in production.`);
+      }
     }
 
     // Real Stripe Session Creation if Stripe SDK is configured
     if (this.stripe) {
       const priceId = this.getPriceIdForPlan(planId);
       const isOneTime = (planId === 'audit_once');
+
+      if (requireLive && !priceId) {
+        throw new Error(`Missing configured Stripe Price ID for plan: ${planId}`);
+      }
 
       const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId 
         ? [{ price: priceId, quantity: 1 }]
@@ -140,7 +155,6 @@ export class BillingService {
         throw new Error('Failed to generate checkout URL from Stripe.');
       }
 
-      // Explicitly distinguish between live and test Stripe sessions
       const stripeMode = session.livemode ? 'live' : 'test';
 
       return {
@@ -164,229 +178,290 @@ export class BillingService {
   }
 
   /**
-   * Processes Stripe Webhook with Official Cryptographic Signature Verification and Idempotency
+   * Processes Stripe Webhook with Cryptographic Signature Verification, Fail-Closed Rules, and Idempotency
    */
   public async handleWebhook(rawBody: Buffer, signature: string): Promise<{ received: boolean; eventType: string; eventId: string; alreadyProcessed?: boolean }> {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const isProd = this.isProduction || process.env.PAYMENT_MODE === 'production' || process.env.PAYMENT_MODE === 'live';
 
-    if (!this.stripe && !webhookSecret) {
-      // If Stripe is not initialized and in development mode, reject or allow simulation event
-      if (this.isProduction) {
-        throw new Error('Stripe Webhook is unconfigured in production.');
+    if (isProd) {
+      if (!this.stripe || !webhookSecret) {
+        throw new Error('Stripe Webhook is unconfigured in production: missing Stripe SDK or STRIPE_WEBHOOK_SECRET.');
       }
+      if (!signature || typeof signature !== 'string' || !signature.trim()) {
+        throw new Error('Missing or empty stripe-signature header.');
+      }
+      if (!rawBody || !Buffer.isBuffer(rawBody) || rawBody.length === 0) {
+        throw new Error('Missing raw request payload for webhook verification.');
+      }
+
+      let event: Stripe.Event;
+      try {
+        event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+      } catch (err: any) {
+        console.error('[BillingService] Production webhook signature verification failed:', err.message);
+        throw new Error(`Webhook Error: ${err.message}`);
+      }
+
+      const { alreadyProcessed } = await this.processVerifiedEvent(event);
+      return {
+        received: true,
+        eventType: event.type,
+        eventId: event.id,
+        alreadyProcessed,
+      };
     }
 
+    // Non-production environment
     let event: Stripe.Event;
-
-    if (this.stripe && webhookSecret) {
+    if (this.stripe && webhookSecret && signature) {
       try {
         event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
       } catch (err: any) {
         console.error('[BillingService] Webhook signature verification failed:', err.message);
         throw new Error(`Webhook Error: ${err.message}`);
       }
-    } else {
-      // In development test fixture mode without webhook secret, parse payload safely
+    } else if (process.env.ALLOW_SIMULATION_WEBHOOK === 'true') {
+      if (!rawBody || !Buffer.isBuffer(rawBody)) {
+        throw new Error('Missing raw request payload for simulation webhook.');
+      }
       try {
         event = JSON.parse(rawBody.toString('utf-8'));
       } catch (err) {
         throw new Error('Invalid JSON payload');
       }
+    } else {
+      throw new Error('Stripe Webhook verification failed: secret unconfigured and simulation webhooks are not enabled.');
     }
 
-    // Idempotency Gate (Blocker Requirement: Section 9 & 17)
-    // Providers retry webhooks; duplicate events MUST NOT grant duplicate credits
-    const isAlreadyProcessed = await storage.billing.isEventProcessed(event.id);
-    if (isAlreadyProcessed) {
-      console.log(`[BillingService] Idempotency hit: Event ${event.id} already processed. Acknowledging without mutation.`);
-      return {
-        received: true,
-        eventType: event.type,
-        eventId: event.id,
-        alreadyProcessed: true,
-      };
-    }
-
-    // Dispatch verified Stripe event
-    await this.processVerifiedEvent(event);
-
+    const { alreadyProcessed } = await this.processVerifiedEvent(event);
     return {
       received: true,
       eventType: event.type,
       eventId: event.id,
-      alreadyProcessed: false,
+      alreadyProcessed,
     };
   }
 
   /**
-   * Dispatches business logic for verified events
+   * Executes transactional state updates for verified webhook events
    */
-  private async processVerifiedEvent(event: Stripe.Event): Promise<void> {
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.client_reference_id || session.metadata?.userId;
-        if (!userId) {
-          console.error('[BillingService] checkout.session.completed missing userId reference.');
-          return;
-        }
-        const planId = session.metadata?.planId || 'creator';
-
-        const creditAllocation = this.getPlanCreditAllocation(planId);
-
-        // Update user entitlement and credits
-        const user = await storage.users.getUser(userId);
-        if (!user) {
-          console.error(`[BillingService] checkout.session.completed: User ${userId} not found.`);
-          return;
-        }
-        
-        if (planId === 'audit_once') {
-          // One-time audit: adds one-time credits without changing monthly recurring tier
-          await storage.users.addCredits(user.id, creditAllocation);
-        } else {
-          // Recurring subscription tier update
-          await storage.users.updatePlan(user.id, planId as any, creditAllocation);
-        }
-
-        // Save customer and subscription identifiers
-        if (session.customer) {
-          await storage.users.updateUser(user.id, {
-            stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer.id,
-            subscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
-            subscriptionStatus: 'active',
-          });
-        }
-
-        // Record subscription state in repository
-        if (session.subscription) {
-          const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
-          await storage.billing.saveSubscription({
-            id: subId,
-            userId: user.id,
-            planId,
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-
-        // Mark event processed for idempotency
-        await storage.billing.markEventProcessed({
-          eventId: event.id,
-          provider: 'stripe',
-          eventType: event.type,
-          processedAt: new Date().toISOString(),
-          userId: user.id,
-          creditsGranted: creditAllocation,
-          planGranted: planId,
-        });
-
-        console.log(`[BillingService] checkout.session.completed: Allocated ${creditAllocation} credits to ${userId} for plan ${planId}`);
-        break;
+  private async processVerifiedEvent(event: Stripe.Event): Promise<{ alreadyProcessed: boolean }> {
+    return await storage.runTransaction(async (state) => {
+      // Idempotency check inside transaction
+      if (state.webhookEvents[event.id]) {
+        console.log(`[BillingService] Idempotency hit: Event ${event.id} already processed.`);
+        return { alreadyProcessed: true };
       }
 
-      case 'invoice.paid': {
-        const invoice = event.data.object as any;
-        // Verify this is a monthly subscription cycle renewal, not the initial checkout
-        if (invoice.billing_reason === 'subscription_cycle') {
-          const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object as Stripe.Checkout.Session;
+          const userId = session.client_reference_id || session.metadata?.userId;
+          if (!userId) {
+            throw new Error(`checkout.session.completed missing user reference in session ${session.id}`);
+          }
+          const user = state.users[userId];
+          if (!user) {
+            throw new Error(`User not found for checkout session: ${userId}`);
+          }
+          const planId = session.metadata?.planId;
+          if (!planId || !ALLOWED_PAID_PLANS.includes(planId as any)) {
+            throw new Error(`Invalid or missing plan ID in checkout session metadata: ${planId}`);
+          }
 
-          if (subscriptionId) {
-            const sub = await storage.billing.getSubscription(subscriptionId);
-            if (sub) {
-              const creditAllocation = this.getPlanCreditAllocation(sub.planId);
-              await storage.users.addCredits(sub.userId, creditAllocation);
-              
-              await storage.billing.markEventProcessed({
-                eventId: event.id,
-                provider: 'stripe',
-                eventType: event.type,
-                processedAt: new Date().toISOString(),
-                userId: sub.userId,
-                creditsGranted: creditAllocation,
-                planGranted: sub.planId,
-              });
+          // Payment status verification
+          const isPaid = session.payment_status === 'paid' || session.payment_status === 'no_payment_required';
+          if (!isPaid) {
+            console.warn(`[BillingService] Checkout session ${session.id} payment status is '${session.payment_status}'. Entitlements withheld.`);
+            state.webhookEvents[event.id] = {
+              eventId: event.id,
+              provider: 'stripe',
+              eventType: event.type,
+              processedAt: new Date().toISOString(),
+              userId: user.id,
+            };
+            return { alreadyProcessed: false };
+          }
 
-              console.log(`[BillingService] invoice.paid (Cycle Renewal): Granted monthly ${creditAllocation} credits to user ${sub.userId}`);
-              break;
+          const creditAllocation = this.getPlanCreditAllocation(planId);
+          if (planId === 'audit_once') {
+            user.creditsRemaining += creditAllocation;
+          } else {
+            user.plan = planId as any;
+            user.creditsRemaining = Math.max(0, user.creditsRemaining) + creditAllocation;
+          }
+
+          if (session.customer) {
+            user.stripeCustomerId = typeof session.customer === 'string' ? session.customer : session.customer.id;
+          }
+          if (session.subscription) {
+            const subId = typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
+            user.subscriptionId = subId;
+            user.subscriptionStatus = 'active';
+
+            state.subscriptions[subId] = {
+              id: subId,
+              userId: user.id,
+              planId,
+              status: 'active',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+          }
+
+          state.webhookEvents[event.id] = {
+            eventId: event.id,
+            provider: 'stripe',
+            eventType: event.type,
+            processedAt: new Date().toISOString(),
+            userId: user.id,
+            creditsGranted: creditAllocation,
+            planGranted: planId,
+          };
+
+          console.log(`[BillingService] checkout.session.completed: Allocated ${creditAllocation} credits to ${userId} for plan ${planId}`);
+          break;
+        }
+
+        case 'invoice.paid': {
+          const invoice = event.data.object as any;
+          if (invoice.billing_reason === 'subscription_cycle') {
+            const subId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+            if (subId) {
+              const sub = state.subscriptions[subId];
+              if (sub) {
+                const user = state.users[sub.userId];
+                if (user) {
+                  const creditAllocation = this.getPlanCreditAllocation(sub.planId);
+                  user.creditsRemaining += creditAllocation;
+                  state.webhookEvents[event.id] = {
+                    eventId: event.id,
+                    provider: 'stripe',
+                    eventType: event.type,
+                    processedAt: new Date().toISOString(),
+                    userId: sub.userId,
+                    creditsGranted: creditAllocation,
+                    planGranted: sub.planId,
+                  };
+                  return { alreadyProcessed: false };
+                }
+              }
             }
           }
+          state.webhookEvents[event.id] = {
+            eventId: event.id,
+            provider: 'stripe',
+            eventType: event.type,
+            processedAt: new Date().toISOString(),
+          };
+          break;
         }
 
-        // Mark event processed
-        await storage.billing.markEventProcessed({
-          eventId: event.id,
-          provider: 'stripe',
-          eventType: event.type,
-          processedAt: new Date().toISOString(),
-        });
-        break;
-      }
-
-      case 'customer.subscription.deleted': {
-        const subscription = event.data.object as Stripe.Subscription;
-        const sub = await storage.billing.getSubscription(subscription.id);
-        if (sub) {
-          sub.status = 'canceled';
-          sub.updatedAt = new Date().toISOString();
-          await storage.billing.saveSubscription(sub);
-
-          await storage.users.updateUser(sub.userId, {
-            subscriptionStatus: 'canceled',
-          });
-          console.log(`[BillingService] Subscription ${subscription.id} canceled for user ${sub.userId}`);
-        }
-
-        await storage.billing.markEventProcessed({
-          eventId: event.id,
-          provider: 'stripe',
-          eventType: event.type,
-          processedAt: new Date().toISOString(),
-        });
-        break;
-      }
-
-      case 'invoice.payment_failed': {
-        const invoice = event.data.object as any;
-        const subscriptionId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
-        if (subscriptionId) {
-          const sub = await storage.billing.getSubscription(subscriptionId);
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object as Stripe.Subscription;
+          const sub = state.subscriptions[subscription.id];
           if (sub) {
-            sub.status = 'past_due';
+            sub.status = 'canceled';
             sub.updatedAt = new Date().toISOString();
-            await storage.billing.saveSubscription(sub);
-            await storage.users.updateUser(sub.userId, {
-              subscriptionStatus: 'past_due',
-            });
-            console.warn(`[BillingService] Payment failed for subscription ${subscriptionId}, user ${sub.userId}`);
+            const user = state.users[sub.userId];
+            if (user) {
+              user.subscriptionStatus = 'canceled';
+            }
           }
+          state.webhookEvents[event.id] = {
+            eventId: event.id,
+            provider: 'stripe',
+            eventType: event.type,
+            processedAt: new Date().toISOString(),
+          };
+          break;
         }
 
-        await storage.billing.markEventProcessed({
-          eventId: event.id,
-          provider: 'stripe',
-          eventType: event.type,
-          processedAt: new Date().toISOString(),
-        });
-        break;
+        case 'invoice.payment_failed': {
+          const invoice = event.data.object as any;
+          const subId = typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id;
+          if (subId) {
+            const sub = state.subscriptions[subId];
+            if (sub) {
+              sub.status = 'past_due';
+              sub.updatedAt = new Date().toISOString();
+              const user = state.users[sub.userId];
+              if (user) {
+                user.subscriptionStatus = 'past_due';
+              }
+            }
+          }
+          state.webhookEvents[event.id] = {
+            eventId: event.id,
+            provider: 'stripe',
+            eventType: event.type,
+            processedAt: new Date().toISOString(),
+          };
+          break;
+        }
+
+        default: {
+          state.webhookEvents[event.id] = {
+            eventId: event.id,
+            provider: 'stripe',
+            eventType: event.type,
+            processedAt: new Date().toISOString(),
+          };
+          break;
+        }
       }
 
-      default: {
-        // Unknown or non-critical provider event: acknowledge safely without mutating state
-        await storage.billing.markEventProcessed({
-          eventId: event.id,
-          provider: 'stripe',
-          eventType: event.type,
-          processedAt: new Date().toISOString(),
-        });
-        break;
-      }
-    }
+      return { alreadyProcessed: false };
+    });
   }
 
   /**
-   * Completes a simulated checkout session (for development testing only)
+   * Authoritatively verifies Checkout Session status against Stripe
+   */
+  public async verifyCheckoutSession(sessionId: string, authenticatedUserId: string): Promise<{
+    status: 'complete' | 'pending' | 'unpaid' | 'expired' | 'canceled' | 'unknown';
+    paymentStatus: string;
+    planId?: string;
+    livemode?: boolean;
+  }> {
+    if (!this.stripe) {
+      throw new Error('Stripe client is not configured.');
+    }
+    const session = await this.stripe.checkout.sessions.retrieve(sessionId);
+    if (!session) {
+      const err: any = new Error(`Checkout session ${sessionId} not found.`);
+      err.statusCode = 404;
+      throw err;
+    }
+    const sessionUserId = session.client_reference_id || session.metadata?.userId;
+    if (sessionUserId && sessionUserId !== authenticatedUserId) {
+      const err: any = new Error('Checkout session does not belong to the authenticated user.');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    let status: 'complete' | 'pending' | 'unpaid' | 'expired' | 'canceled' | 'unknown' = 'pending';
+    if (session.payment_status === 'paid') {
+      status = 'complete';
+    } else if (session.payment_status === 'unpaid') {
+      status = 'unpaid';
+    } else if (session.status === 'expired') {
+      status = 'expired';
+    } else if (session.status === 'open') {
+      status = 'pending';
+    }
+
+    return {
+      status,
+      paymentStatus: session.payment_status || 'unpaid',
+      planId: session.metadata?.planId,
+      livemode: session.livemode,
+    };
+  }
+
+  /**
+   * Completes a simulated checkout session (strictly for non-production environments)
    */
   public async completeSimulatedCheckout(sessionId: string, planId: string, userId: string): Promise<UserAccount> {
     const paymentMode = process.env.PAYMENT_MODE;
@@ -395,37 +470,47 @@ export class BillingService {
       throw new Error('Simulation checkout completion is strictly forbidden in production mode.');
     }
 
+    if (!sessionId.startsWith('sim_')) {
+      throw new Error('Invalid simulation session ID format.');
+    }
+
+    if (!ALLOWED_PAID_PLANS.includes(planId as any)) {
+      throw new Error(`Invalid plan for simulation checkout: ${planId}`);
+    }
+
     const syntheticEventId = `sim_evt_${sessionId}`;
-    const alreadyProcessed = await storage.billing.isEventProcessed(syntheticEventId);
-    if (alreadyProcessed) {
-      const existingUser = await storage.users.getUser(userId);
-      if (!existingUser) throw new Error(`User not found: ${userId}`);
-      return existingUser;
-    }
 
-    const creditAllocation = this.getPlanCreditAllocation(planId);
-    let user = await storage.users.getUser(userId);
-    if (!user) {
-      throw new Error(`User not found: ${userId}`);
-    }
+    return await storage.runTransaction(async (state) => {
+      const alreadyProcessed = !!state.webhookEvents[syntheticEventId];
+      const user = state.users[userId];
+      if (!user) {
+        throw new Error(`User not found: ${userId}`);
+      }
 
-    if (planId === 'audit_once') {
-      user = await storage.users.addCredits(user.id, creditAllocation);
-    } else {
-      user = await storage.users.updatePlan(user.id, planId as any, creditAllocation);
-    }
+      if (alreadyProcessed) {
+        return user;
+      }
 
-    await storage.billing.markEventProcessed({
-      eventId: syntheticEventId,
-      provider: 'stripe',
-      eventType: 'checkout.session.completed',
-      processedAt: new Date().toISOString(),
-      userId: user.id,
-      creditsGranted: creditAllocation,
-      planGranted: planId,
+      const creditAllocation = this.getPlanCreditAllocation(planId);
+      if (planId === 'audit_once') {
+        user.creditsRemaining += creditAllocation;
+      } else {
+        user.plan = planId as any;
+        user.creditsRemaining = Math.max(0, user.creditsRemaining) + creditAllocation;
+      }
+
+      state.webhookEvents[syntheticEventId] = {
+        eventId: syntheticEventId,
+        provider: 'stripe',
+        eventType: 'checkout.session.completed',
+        processedAt: new Date().toISOString(),
+        userId: user.id,
+        creditsGranted: creditAllocation,
+        planGranted: planId,
+      };
+
+      return user;
     });
-
-    return user;
   }
 }
 

@@ -8,7 +8,7 @@ import { jobOrchestrator } from '../pipeline/jobOrchestrator';
 import { mediaInspector } from '../pipeline/mediaInspector';
 import { thumbnailInspector } from '../pipeline/thumbnailInspector';
 import { creditService } from '../services/creditService';
-import { billingService } from '../services/billingService';
+import { billingService, ALLOWED_PAID_PLANS } from '../services/billingService';
 import { ScanJob, ScanMode, UserAccount, CrossVideoPattern } from '../../types';
 
 export const apiRouter = Router();
@@ -383,8 +383,10 @@ apiRouter.post('/billing/checkout', async (req: Request, res: Response) => {
     if (!user) return;
 
     const { planId } = req.body;
-    if (!planId || planId === 'free') {
-      return res.status(400).json({ error: 'Valid paid plan ID is required for checkout (creator, pro, agency, audit_once).' });
+    if (!planId || !ALLOWED_PAID_PLANS.includes(planId as any)) {
+      return res.status(400).json({ 
+        error: `Valid paid plan ID is required for checkout. Allowed plans: ${ALLOWED_PAID_PLANS.join(', ')}` 
+      });
     }
 
     const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`;
@@ -398,21 +400,34 @@ apiRouter.post('/billing/checkout', async (req: Request, res: Response) => {
     res.json(session);
   } catch (err: any) {
     console.error('[API] Checkout session creation failed:', err.message);
-    res.status(500).json({ error: err.message || 'Failed to create checkout session.' });
+    res.status(400).json({ error: err.message || 'Failed to create checkout session.' });
   }
 });
 
-// Webhook endpoint with Raw Body signature verification and Idempotency (Public with Stripe Sig)
+// Webhook endpoint with fail-closed cryptographic signature verification and idempotency
 apiRouter.post('/billing/webhook', async (req: Request, res: Response) => {
   try {
-    const signature = req.headers['stripe-signature'] as string;
-    const rawBody = (req as any).rawBody || Buffer.from(JSON.stringify(req.body));
+    const signature = req.headers['stripe-signature'] as string | undefined;
+    const rawBody = (req as any).rawBody as Buffer | undefined;
 
-    if (!signature && process.env.NODE_ENV === 'production') {
-      return res.status(400).json({ error: 'Missing stripe-signature header.' });
+    const paymentMode = process.env.PAYMENT_MODE;
+    const isProd = process.env.NODE_ENV === 'production' || paymentMode === 'production' || paymentMode === 'live';
+
+    if (isProd) {
+      if (!signature) {
+        return res.status(400).json({ error: 'Missing stripe-signature header.' });
+      }
+      if (!rawBody || !Buffer.isBuffer(rawBody) || rawBody.length === 0) {
+        return res.status(400).json({ error: 'Missing raw request payload for webhook verification.' });
+      }
+    } else {
+      if (!rawBody && !signature) {
+        return res.status(400).json({ error: 'Missing webhook payload.' });
+      }
     }
 
-    const result = await billingService.handleWebhook(rawBody, signature);
+    const payloadBuffer = rawBody || Buffer.from(JSON.stringify(req.body));
+    const result = await billingService.handleWebhook(payloadBuffer, signature || '');
     res.json(result);
   } catch (err: any) {
     console.error('[API Webhook Error]', err.message);
@@ -426,6 +441,10 @@ apiRouter.get('/billing/session-status', async (req: Request, res: Response) => 
     if (!user) return;
 
     const { sessionId, plan, mode } = req.query as { sessionId?: string; plan?: string; mode?: string };
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId query parameter is required.' });
+    }
+
     const paymentMode = process.env.PAYMENT_MODE;
     const requireLive = process.env.NODE_ENV === 'production' || paymentMode === 'production' || paymentMode === 'live';
 
@@ -433,15 +452,28 @@ apiRouter.get('/billing/session-status', async (req: Request, res: Response) => 
       if (requireLive) {
         return res.status(403).json({ error: 'Simulated checkout is disabled in production.' });
       }
-      if (sessionId && plan) {
-        const updatedUser = await billingService.completeSimulatedCheckout(sessionId, plan, user.id);
-        return res.json({ status: 'complete', mode: 'simulation', user: sanitizeUser(updatedUser) });
+      if (!plan || !ALLOWED_PAID_PLANS.includes(plan as any)) {
+        return res.status(400).json({ 
+          error: `Valid paid plan is required for simulated checkout (${ALLOWED_PAID_PLANS.join(', ')}).` 
+        });
       }
+      const updatedUser = await billingService.completeSimulatedCheckout(sessionId, plan, user.id);
+      return res.json({ status: 'complete', paymentStatus: 'paid', mode: 'simulation', user: sanitizeUser(updatedUser) });
     }
 
-    res.json({ status: 'complete', user: sanitizeUser(user) });
+    // Real verification via Stripe
+    if (!billingService.isStripeClientConfigured()) {
+      if (requireLive) {
+        return res.status(503).json({ error: 'Stripe gateway is unconfigured in production.' });
+      }
+      return res.status(400).json({ error: 'Invalid checkout session or payment provider unconfigured.' });
+    }
+
+    const verification = await billingService.verifyCheckoutSession(sessionId, user.id);
+    return res.json(verification);
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to verify session status.' });
+    const statusCode = err.statusCode || 400;
+    res.status(statusCode).json({ error: err.message || 'Failed to verify session status.' });
   }
 });
 
