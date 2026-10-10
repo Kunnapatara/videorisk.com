@@ -85,7 +85,10 @@ export class BillingService {
       throw new Error('Free plan does not require a payment session.');
     }
 
-    const user = await storage.users.getUser(userId) || await storage.users.getOrCreateDefaultUser();
+    const user = await storage.users.getUser(userId);
+    if (!user) {
+      throw new Error(`User not found: ${userId}`);
+    }
 
     const paymentMode = process.env.PAYMENT_MODE;
     const requireLive = this.isProduction || paymentMode === 'production' || paymentMode === 'live';
@@ -222,13 +225,21 @@ export class BillingService {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.client_reference_id || session.metadata?.userId || 'user_default';
+        const userId = session.client_reference_id || session.metadata?.userId;
+        if (!userId) {
+          console.error('[BillingService] checkout.session.completed missing userId reference.');
+          return;
+        }
         const planId = session.metadata?.planId || 'creator';
 
         const creditAllocation = this.getPlanCreditAllocation(planId);
 
         // Update user entitlement and credits
-        const user = await storage.users.getUser(userId) || await storage.users.getOrCreateDefaultUser();
+        const user = await storage.users.getUser(userId);
+        if (!user) {
+          console.error(`[BillingService] checkout.session.completed: User ${userId} not found.`);
+          return;
+        }
         
         if (planId === 'audit_once') {
           // One-time audit: adds one-time credits without changing monthly recurring tier
@@ -387,11 +398,16 @@ export class BillingService {
     const syntheticEventId = `sim_evt_${sessionId}`;
     const alreadyProcessed = await storage.billing.isEventProcessed(syntheticEventId);
     if (alreadyProcessed) {
-      return (await storage.users.getUser(userId)) || await storage.users.getOrCreateDefaultUser();
+      const existingUser = await storage.users.getUser(userId);
+      if (!existingUser) throw new Error(`User not found: ${userId}`);
+      return existingUser;
     }
 
     const creditAllocation = this.getPlanCreditAllocation(planId);
-    let user = await storage.users.getUser(userId) || await storage.users.getOrCreateDefaultUser();
+    let user = await storage.users.getUser(userId);
+    if (!user) {
+      throw new Error(`User not found: ${userId}`);
+    }
 
     if (planId === 'audit_once') {
       user = await storage.users.addCredits(user.id, creditAllocation);
