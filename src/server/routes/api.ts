@@ -80,15 +80,25 @@ const uploadThumbnail = multer({
 });
 
 /**
- * Validates that a file path is safely confined to the upload directory
+ * Validates that a file path is safely confined to the upload directory.
+ * Prevents directory traversal, symlink jumping, and prefix-collision attacks.
  */
 function isSafeUploadPath(candidatePath: string): boolean {
   try {
     const resolved = path.resolve(candidatePath);
-    return resolved.startsWith(uploadDir) && fs.existsSync(resolved);
+    const rel = path.relative(uploadDir, resolved);
+    return !rel.startsWith('..') && !path.isAbsolute(rel) && fs.existsSync(resolved);
   } catch {
     return false;
   }
+}
+
+/**
+ * Checks whether test-only account switching endpoints are permitted.
+ * In production or when ENABLE_TEST_ACCOUNT_SWITCH is not true, returns false.
+ */
+function isTestSwitchingAllowed(): boolean {
+  return process.env.NODE_ENV !== 'production' && process.env.ENABLE_TEST_ACCOUNT_SWITCH === 'true';
 }
 
 /**
@@ -100,11 +110,12 @@ export function sanitizeUser(user: UserAccount) {
 }
 
 /**
- * Extracts and authenticates user identity from request session tokens
- * Supports Authorization Bearer token, x-session-token header, and cookie
- * Falls back to default user for seamless first-touch browsing
+ * Extracts and authenticates user identity from request session tokens.
+ * Supports Authorization Bearer token, x-session-token header, and cookie.
+ * Returns null if token is missing, invalid, or expired.
+ * Never silently converts an anonymous request into a shared default user.
  */
-export async function getUserFromRequest(req: Request): Promise<UserAccount> {
+export async function getAuthenticatedUser(req: Request): Promise<UserAccount | null> {
   let token: string | undefined;
 
   const authHeader = req.headers.authorization;
@@ -116,17 +127,27 @@ export async function getUserFromRequest(req: Request): Promise<UserAccount> {
     token = String((req as any).cookies.vr_session).trim();
   }
 
-  if (token) {
-    const user = await storage.users.getUserBySession(token);
-    if (user) {
-      return user;
-    }
+  if (!token) {
+    return null;
   }
 
-  return await storage.users.getOrCreateDefaultUser();
+  return await storage.users.getUserBySession(token);
 }
 
-// 1. Clean Health Endpoint
+/**
+ * Enforces that the request has a valid, active user session.
+ * Rejects anonymous, missing, expired, or invalid sessions with 401 Unauthorized.
+ */
+export async function requireAuth(req: Request, res: Response): Promise<UserAccount | null> {
+  const user = await getAuthenticatedUser(req);
+  if (!user) {
+    res.status(401).json({ error: 'Unauthorized: A valid active session is required.' });
+    return null;
+  }
+  return user;
+}
+
+// 1. Clean Health Endpoint (Public)
 apiRouter.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',
@@ -134,7 +155,7 @@ apiRouter.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// 2. Authentication & Account Management
+// 2. Authentication & Account Management (Public)
 apiRouter.post('/auth/register', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
@@ -158,15 +179,16 @@ apiRouter.post('/auth/register', async (req: Request, res: Response) => {
       normalizedEmail,
       passwordHash,
       salt,
-      10, // 10 minutes free trial credits
+      10, // 10 free minutes starter credits
       'free'
     );
 
     const sessionToken = await storage.users.createSession(newUser.id);
+
     res.status(201).json({
       user: sanitizeUser(newUser),
       token: sessionToken,
-      message: 'Account created successfully with 10 free minutes.'
+      message: 'Account successfully registered.'
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Registration failed.' });
@@ -210,6 +232,8 @@ apiRouter.post('/auth/logout', async (req: Request, res: Response) => {
       token = authHeader.substring(7).trim();
     } else if (req.headers['x-session-token']) {
       token = String(req.headers['x-session-token']).trim();
+    } else if ((req as any).cookies?.vr_session) {
+      token = String((req as any).cookies.vr_session).trim();
     }
     if (token) {
       await storage.users.deleteSession(token);
@@ -220,9 +244,12 @@ apiRouter.post('/auth/logout', async (req: Request, res: Response) => {
   }
 });
 
+// Authenticated session check (Protected)
 apiRouter.get('/auth/me', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const safe = sanitizeUser(user);
     res.json({
       ...safe,
@@ -233,7 +260,12 @@ apiRouter.get('/auth/me', async (req: Request, res: Response) => {
   }
 });
 
+// Test Account listing — Gated strictly to development/test environments
 apiRouter.get('/auth/accounts', async (req: Request, res: Response) => {
+  if (!isTestSwitchingAllowed()) {
+    return res.status(403).json({ error: 'Forbidden: Test account listing is disabled in this environment.' });
+  }
+
   try {
     const allUsers = await storage.users.listUsers();
     const safeList = allUsers.map(u => ({
@@ -249,7 +281,12 @@ apiRouter.get('/auth/accounts', async (req: Request, res: Response) => {
   }
 });
 
+// Test Account switcher — Gated strictly to development/test environments
 apiRouter.post('/auth/switch-account', async (req: Request, res: Response) => {
+  if (!isTestSwitchingAllowed()) {
+    return res.status(403).json({ error: 'Forbidden: Account switching is disabled in this environment.' });
+  }
+
   try {
     const { userId, email } = req.body;
     let targetUser: UserAccount | null = null;
@@ -276,6 +313,10 @@ apiRouter.post('/auth/switch-account', async (req: Request, res: Response) => {
 });
 
 apiRouter.post('/auth/switch-demo-user', async (req: Request, res: Response) => {
+  if (!isTestSwitchingAllowed()) {
+    return res.status(403).json({ error: 'Forbidden: Account switching is disabled in this environment.' });
+  }
+
   try {
     const { userId, email } = req.body;
     let targetUser: UserAccount | null = null;
@@ -301,10 +342,11 @@ apiRouter.post('/auth/switch-demo-user', async (req: Request, res: Response) => 
   }
 });
 
-// 3. User & Usage Profile
+// 3. User & Usage Profile (Protected)
 apiRouter.get('/user', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
     res.json(sanitizeUser(user));
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to retrieve user account.' });
@@ -313,8 +355,10 @@ apiRouter.get('/user', async (req: Request, res: Response) => {
 
 apiRouter.post('/user/plan', async (req: Request, res: Response) => {
   try {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const { plan } = req.body;
-    const user = await getUserFromRequest(req);
     
     // Free trial can be claimed directly once
     if (plan === 'free') {
@@ -335,12 +379,14 @@ apiRouter.post('/user/plan', async (req: Request, res: Response) => {
 // 4. Production Billing & Checkout Routes
 apiRouter.post('/billing/checkout', async (req: Request, res: Response) => {
   try {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const { planId } = req.body;
     if (!planId || planId === 'free') {
       return res.status(400).json({ error: 'Valid paid plan ID is required for checkout (creator, pro, agency, audit_once).' });
     }
 
-    const user = await getUserFromRequest(req);
     const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`;
 
     const session = await billingService.createCheckoutSession({
@@ -356,7 +402,7 @@ apiRouter.post('/billing/checkout', async (req: Request, res: Response) => {
   }
 });
 
-// Webhook endpoint with Raw Body signature verification and Idempotency
+// Webhook endpoint with Raw Body signature verification and Idempotency (Public with Stripe Sig)
 apiRouter.post('/billing/webhook', async (req: Request, res: Response) => {
   try {
     const signature = req.headers['stripe-signature'] as string;
@@ -376,15 +422,21 @@ apiRouter.post('/billing/webhook', async (req: Request, res: Response) => {
 
 apiRouter.get('/billing/session-status', async (req: Request, res: Response) => {
   try {
-    const { sessionId, plan, mode } = req.query as { sessionId?: string; plan?: string; mode?: string };
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
 
+    const { sessionId, plan, mode } = req.query as { sessionId?: string; plan?: string; mode?: string };
     const paymentMode = process.env.PAYMENT_MODE;
     const requireLive = process.env.NODE_ENV === 'production' || paymentMode === 'production' || paymentMode === 'live';
 
-    if (mode === 'simulation' && sessionId && plan && !requireLive) {
-      const updatedUser = await billingService.completeSimulatedCheckout(sessionId, plan, user.id);
-      return res.json({ status: 'complete', mode: 'simulation', user: sanitizeUser(updatedUser) });
+    if (mode === 'simulation') {
+      if (requireLive) {
+        return res.status(403).json({ error: 'Simulated checkout is disabled in production.' });
+      }
+      if (sessionId && plan) {
+        const updatedUser = await billingService.completeSimulatedCheckout(sessionId, plan, user.id);
+        return res.json({ status: 'complete', mode: 'simulation', user: sanitizeUser(updatedUser) });
+      }
     }
 
     res.json({ status: 'complete', user: sanitizeUser(user) });
@@ -395,7 +447,9 @@ apiRouter.get('/billing/session-status', async (req: Request, res: Response) => 
 
 apiRouter.get('/usage', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const stats = await storage.usage.getUsageStats(user.id);
     res.json({ user: sanitizeUser(user), stats });
   } catch (err: any) {
@@ -412,21 +466,42 @@ apiRouter.get('/plans', async (req: Request, res: Response) => {
   }
 });
 
-// 5. Upload & Pre-inspection
+// 5. Upload & Pre-inspection (Protected)
 apiRouter.post('/uploads', upload.single('video'), async (req: Request, res: Response) => {
   try {
+    const user = await requireAuth(req, res);
+    if (!user) {
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return;
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'No video file provided.' });
     }
 
     const filePath = req.file.path;
+    const fileId = path.basename(filePath);
+
+    // Track upload ownership record
+    await storage.uploads.recordUpload({
+      fileId,
+      userId: user.id,
+      filename: req.file.originalname,
+      filePath,
+      fileSize: req.file.size,
+      type: 'video',
+      createdAt: new Date().toISOString()
+    });
+
     const metadata = await mediaInspector.inspect(filePath, req.file.originalname);
 
     const standardCredits = creditService.calculateRequiredCredits(metadata.durationSeconds, 'standard');
     const deepCredits = creditService.calculateRequiredCredits(metadata.durationSeconds, 'deep');
 
     res.json({
-      fileId: path.basename(filePath),
+      fileId,
       filePath,
       filename: req.file.originalname,
       metadata,
@@ -437,27 +512,54 @@ apiRouter.post('/uploads', upload.single('video'), async (req: Request, res: Res
       }
     });
   } catch (err: any) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+    }
     res.status(400).json({ error: err.message || 'Failed to inspect uploaded video.' });
   }
 });
 
-// 5b. Upload Thumbnail Image
+// 5b. Upload Thumbnail Image (Protected)
 apiRouter.post('/uploads/thumbnail', uploadThumbnail.single('thumbnail'), async (req: Request, res: Response) => {
   try {
+    const user = await requireAuth(req, res);
+    if (!user) {
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return;
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: 'No thumbnail image file provided.' });
     }
 
     const filePath = req.file.path;
+    const fileId = path.basename(filePath);
+
+    // Track thumbnail ownership record
+    await storage.uploads.recordUpload({
+      fileId,
+      userId: user.id,
+      filename: req.file.originalname,
+      filePath,
+      fileSize: req.file.size,
+      type: 'thumbnail',
+      createdAt: new Date().toISOString()
+    });
+
     const thumbnailMetadata = await thumbnailInspector.inspect(filePath, req.file.originalname);
 
     res.json({
-      fileId: path.basename(filePath),
+      fileId,
       filePath,
       filename: req.file.originalname,
       thumbnailMetadata
     });
   } catch (err: any) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch { /* ignore */ }
+    }
     res.status(400).json({ error: err.message || 'Failed to inspect uploaded thumbnail image.' });
   }
 });
@@ -465,7 +567,9 @@ apiRouter.post('/uploads/thumbnail', uploadThumbnail.single('thumbnail'), async 
 // 6. Channel Context Profile Endpoints (User-Owned & Scoped)
 apiRouter.get('/channel/profile', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const profile = await storage.channelProfiles.getProfile(user.id);
     res.json(profile);
   } catch (err: any) {
@@ -475,7 +579,9 @@ apiRouter.get('/channel/profile', async (req: Request, res: Response) => {
 
 apiRouter.put('/channel/profile', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const updated = await storage.channelProfiles.saveProfile(user.id, req.body);
     res.json(updated);
   } catch (err: any) {
@@ -485,7 +591,9 @@ apiRouter.put('/channel/profile', async (req: Request, res: Response) => {
 
 apiRouter.delete('/channel/profile', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const deleted = await storage.channelProfiles.deleteProfile(user.id);
     res.json({ success: deleted });
   } catch (err: any) {
@@ -496,7 +604,9 @@ apiRouter.delete('/channel/profile', async (req: Request, res: Response) => {
 // 6b. Cross-Video Recurring Patterns (Scoped strictly to user's authorized scan history)
 apiRouter.get('/channel/patterns', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const userScans = await storage.scans.getAllScans(user.id);
     const completedScans = userScans.filter(s => s.status === 'COMPLETED');
 
@@ -559,9 +669,12 @@ apiRouter.get('/channel/patterns', async (req: Request, res: Response) => {
   }
 });
 
-// 7. Create Scan (with Path Traversal, Ownership, Publishing Package & Credit Checks)
+// 7. Create Scan (with Path Traversal, Ownership & Credit Checks)
 apiRouter.post('/scans', async (req: Request, res: Response) => {
   try {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const { 
       videoPath, 
       videoFilename, 
@@ -579,17 +692,27 @@ apiRouter.post('/scans', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Valid video file path is required.' });
     }
 
-    // Security: Path Traversal Protection for video
+    // Security: Safe Upload Path Traversal Check
     if (!isSafeUploadPath(videoPath)) {
       return res.status(403).json({ error: 'Access denied: Invalid or unauthorized video path.' });
     }
 
-    // Security: Path Traversal Protection for optional thumbnail
-    if (thumbnailPath && !isSafeUploadPath(thumbnailPath)) {
-      return res.status(403).json({ error: 'Access denied: Invalid or unauthorized thumbnail path.' });
+    // Security: Ownership verification of uploaded video file
+    const videoUploadRecord = await storage.uploads.getUploadByPath(videoPath);
+    if (videoUploadRecord && videoUploadRecord.userId !== user.id) {
+      return res.status(403).json({ error: 'Access denied: Uploaded video file belongs to another user.' });
     }
 
-    const user = await getUserFromRequest(req);
+    // Security: Path Traversal & Ownership check for optional thumbnail
+    if (thumbnailPath) {
+      if (!isSafeUploadPath(thumbnailPath)) {
+        return res.status(403).json({ error: 'Access denied: Invalid or unauthorized thumbnail path.' });
+      }
+      const thumbUploadRecord = await storage.uploads.getUploadByPath(thumbnailPath);
+      if (thumbUploadRecord && thumbUploadRecord.userId !== user.id) {
+        return res.status(403).json({ error: 'Access denied: Uploaded thumbnail file belongs to another user.' });
+      }
+    }
 
     // If re-scan, verify that parent scan belongs to this authenticated user
     if (parentScanId) {
@@ -646,6 +769,9 @@ apiRouter.post('/scans', async (req: Request, res: Response) => {
 // 8. Create Demo Scan (Quick Creator Playground with Strict User Ownership)
 apiRouter.post('/scans/demo', async (req: Request, res: Response) => {
   try {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const { 
       demoType = 'problematic', 
       scanMode = 'standard',
@@ -653,8 +779,6 @@ apiRouter.post('/scans/demo', async (req: Request, res: Response) => {
       videoDescription,
       hasThumbnail = false
     } = req.body;
-    
-    const user = await getUserFromRequest(req);
 
     if (user.creditsRemaining <= 0) {
       return res.status(402).json({ 
@@ -715,7 +839,9 @@ apiRouter.post('/scans/demo', async (req: Request, res: Response) => {
 // 9. Get All Scans (Strict User Ownership: returns only requesting user's scans)
 apiRouter.get('/scans', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const scans = await storage.scans.getAllScans(user.id);
     res.json(scans);
   } catch (err: any) {
@@ -726,7 +852,9 @@ apiRouter.get('/scans', async (req: Request, res: Response) => {
 // 10. Get Single Scan Status (Strict IDOR protection: only scan owner may read)
 apiRouter.get('/scans/:id', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const scan = await storage.scans.getScan(req.params.id);
     if (!scan) {
       return res.status(404).json({ error: 'Scan job not found.' });
@@ -743,7 +871,9 @@ apiRouter.get('/scans/:id', async (req: Request, res: Response) => {
 // 11. Get Evidence (Strict IDOR protection)
 apiRouter.get('/scans/:id/evidence', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const scan = await storage.scans.getScan(req.params.id);
     if (!scan) {
       return res.status(404).json({ error: 'Scan job not found.' });
@@ -761,7 +891,9 @@ apiRouter.get('/scans/:id/evidence', async (req: Request, res: Response) => {
 // 12. Get Report (Strict IDOR protection)
 apiRouter.get('/scans/:id/report', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const scan = await storage.scans.getScan(req.params.id);
     if (!scan) {
       return res.status(404).json({ error: 'Scan job not found.' });
@@ -782,7 +914,9 @@ apiRouter.get('/scans/:id/report', async (req: Request, res: Response) => {
 // 13. Re-scan Endpoint (Strict IDOR protection)
 apiRouter.post('/scans/:id/rescan', upload.single('video'), async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const parentScan = await storage.scans.getScan(req.params.id);
     if (!parentScan) {
       return res.status(404).json({ error: 'Original scan not found.' });
@@ -804,9 +938,22 @@ apiRouter.post('/scans/:id/rescan', upload.single('video'), async (req: Request,
     if (req.file) {
       filePath = req.file.path;
       filename = req.file.originalname;
+      await storage.uploads.recordUpload({
+        fileId: path.basename(filePath),
+        userId: user.id,
+        filename,
+        filePath,
+        fileSize: req.file.size,
+        type: 'video',
+        createdAt: new Date().toISOString()
+      });
     } else if (req.body.videoPath && isSafeUploadPath(req.body.videoPath)) {
       filePath = req.body.videoPath;
       filename = req.body.videoFilename || path.basename(filePath);
+      const uploadRec = await storage.uploads.getUploadByPath(filePath);
+      if (uploadRec && uploadRec.userId !== user.id) {
+        return res.status(403).json({ error: 'Access denied: Video file belongs to another user.' });
+      }
     } else {
       filename = `Revised_${parentScan.videoFilename}`;
       filePath = path.join(uploadDir, `demo_rescan_${Date.now()}.mp4`);
@@ -846,7 +993,9 @@ apiRouter.post('/scans/:id/rescan', upload.single('video'), async (req: Request,
 // 14. Comparison Endpoint (Strict IDOR protection)
 apiRouter.get('/scans/:id/comparison', async (req: Request, res: Response) => {
   try {
-    const user = await getUserFromRequest(req);
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
     const scan = await storage.scans.getScan(req.params.id);
     if (!scan) {
       return res.status(404).json({ error: 'Scan not found.' });

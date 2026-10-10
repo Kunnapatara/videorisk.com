@@ -413,7 +413,27 @@ export class PolicyIntelligenceEngine {
     // DOMAIN 5: CHANNEL CONTEXT INTEGRATION
     // ==========================================
     if (channelProfile) {
-      if (channelProfile.aiAssistedContent && !channelProfile.aiDisclosureDetails) {
+      // 1. Core Profile Grounding Record
+      addItem({
+        domain: 'channel_context',
+        start: 0,
+        end: 0,
+        assetLocation: 'Channel Profile Context',
+        type: 'channel_grounding',
+        category: 'original_contribution',
+        severity: 'info',
+        confidence: 0.95,
+        confidenceLevel: 'HIGH',
+        provenance: 'profile:user_declared_baseline',
+        source: 'channel_profile',
+        label: `ℹ️ Grounded in Channel Context: ${channelProfile.channelTopic}`,
+        details: `Analysis grounded in declared creator workflow (${channelProfile.contentType}). Typical sources: ${channelProfile.typicalSources || 'original footage'}.`,
+        contextualInterpretation: `Evaluated using declared production workflow (${channelProfile.productionWorkflow}) and typical source material.`,
+        recommendedAction: 'Keep channel context profile updated as production workflows evolve.'
+      });
+
+      // 2. AI Disclosure Advisory if AI usage is declared
+      if (channelProfile.aiAssistedContent) {
         addItem({
           domain: 'channel_context',
           start: 0,
@@ -427,7 +447,9 @@ export class PolicyIntelligenceEngine {
           provenance: 'profile:user_declared_survey',
           source: 'channel_profile',
           label: 'ℹ️ AI-Generated Content Disclosure Reminder',
-          details: 'Channel profile notes use of AI-assisted generation. YouTube requires creators to disclose realistic altered/synthetic media.',
+          details: channelProfile.aiDisclosureDetails 
+            ? `Channel profile notes AI usage: "${channelProfile.aiDisclosureDetails}". Ensure proper YouTube Studio disclosure.`
+            : 'Channel profile notes use of AI-assisted generation. YouTube requires creators to disclose realistic altered/synthetic media.',
           contextualInterpretation: 'Self-reporting in YouTube Studio avoids platform penalties for synthetic media.',
           recommendedAction: 'Select "Altered content" checkbox in YouTube Studio details when publishing.'
         });

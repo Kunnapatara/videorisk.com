@@ -104,6 +104,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   const handleStartRealScan = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      setUploadError('Please sign in or register to analyze videos. All scan data is strictly private to your account.');
+      return;
+    }
     if (!file) {
       setUploadError('Please select or drag a video file.');
       return;
@@ -189,6 +193,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   };
 
   const handleStartDemoScan = async (demoType: 'problematic' | 'revised') => {
+    if (!user) {
+      setUploadError('Please sign in or register to analyze videos. All scan data is strictly private to your account.');
+      return;
+    }
     setIsUploading(true);
     setUploadError(null);
 

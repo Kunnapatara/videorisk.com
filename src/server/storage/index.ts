@@ -55,6 +55,23 @@ export interface IUsageRepository {
   getUsageStats(userId: string): Promise<{ totalMinutes: number; totalCredits: number; scanCount: number }>;
 }
 
+export interface UploadRecord {
+  fileId: string;
+  userId: string;
+  filename: string;
+  filePath: string;
+  fileSize: number;
+  type: 'video' | 'thumbnail';
+  createdAt: string;
+}
+
+export interface IUploadRepository {
+  recordUpload(upload: UploadRecord): Promise<UploadRecord>;
+  getUpload(fileId: string): Promise<UploadRecord | null>;
+  getUploadByPath(filePath: string): Promise<UploadRecord | null>;
+  deleteUpload(fileId: string): Promise<boolean>;
+}
+
 export interface IBillingRepository {
   getPlans(): Promise<any[]>;
   isEventProcessed(eventId: string): Promise<boolean>;
@@ -66,6 +83,7 @@ export interface IBillingRepository {
 
 export interface IStorageRepository {
   users: IUserRepository;
+  uploads: IUploadRepository;
   channelProfiles: IChannelProfileRepository;
   scans: IScanRepository;
   evidence: IEvidenceRepository;
@@ -74,11 +92,12 @@ export interface IStorageRepository {
 }
 
 // In-Memory Storage with pure JSON file persistence (Zero SQLite, Zero native binary dependency)
-class InMemoryStorageRepository implements IStorageRepository {
+export class InMemoryStorageRepository implements IStorageRepository {
   private dataFile: string;
   private state: {
     users: Record<string, UserAccount>;
     sessions: Record<string, AuthSessionRecord>;
+    uploads: Record<string, UploadRecord>;
     channelProfiles: Record<string, ChannelContextProfile>;
     scans: Record<string, ScanJob>;
     reports: Record<string, RiskReport>;
@@ -89,11 +108,21 @@ class InMemoryStorageRepository implements IStorageRepository {
     subscriptions: Record<string, SubscriptionRecord>;
   };
 
-  constructor() {
-    this.dataFile = path.resolve(process.cwd(), 'data', 'store.json');
+  constructor(customDataFile?: string) {
+    if (customDataFile) {
+      this.dataFile = path.resolve(customDataFile);
+    } else if (process.env.STORE_PATH) {
+      this.dataFile = path.resolve(process.env.STORE_PATH);
+    } else if (process.env.DATA_DIR) {
+      this.dataFile = path.resolve(process.env.DATA_DIR, 'store.json');
+    } else {
+      this.dataFile = path.resolve(process.cwd(), 'data', 'store.json');
+    }
+
     this.state = {
       users: {},
       sessions: {},
+      uploads: {},
       channelProfiles: {},
       scans: {},
       reports: {},
@@ -108,6 +137,11 @@ class InMemoryStorageRepository implements IStorageRepository {
   }
 
   private seedDefaultUserIfNeeded() {
+    // SECURITY: Do NOT seed default or demo credentials in production mode!
+    if (process.env.NODE_ENV === 'production') {
+      return;
+    }
+
     let modified = false;
     const defaultId = 'user_default';
     if (!this.state.users[defaultId]) {
@@ -182,6 +216,7 @@ class InMemoryStorageRepository implements IStorageRepository {
         this.state = {
           users: parsed.users || {},
           sessions: parsed.sessions || {},
+          uploads: parsed.uploads || {},
           channelProfiles: parsed.channelProfiles || {},
           scans: parsed.scans || {},
           reports: parsed.reports || {},
@@ -527,6 +562,33 @@ class InMemoryStorageRepository implements IStorageRepository {
       return false;
     }
   };
+
+  public uploads: IUploadRepository = {
+    recordUpload: async (upload: UploadRecord) => {
+      this.state.uploads[upload.fileId] = upload;
+      this.save();
+      return upload;
+    },
+    getUpload: async (fileId: string) => {
+      return this.state.uploads[fileId] || null;
+    },
+    getUploadByPath: async (filePath: string) => {
+      const resolved = path.resolve(filePath);
+      return Object.values(this.state.uploads).find(u => path.resolve(u.filePath) === resolved) || null;
+    },
+    deleteUpload: async (fileId: string) => {
+      if (this.state.uploads[fileId]) {
+        delete this.state.uploads[fileId];
+        this.save();
+        return true;
+      }
+      return false;
+    }
+  };
+}
+
+export function createStorage(customPath?: string): IStorageRepository {
+  return new InMemoryStorageRepository(customPath);
 }
 
 export const storage = new InMemoryStorageRepository();

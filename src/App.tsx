@@ -32,8 +32,11 @@ export function App() {
       if (res.ok) {
         const data = await res.json();
         setUser(data);
+      } else {
+        setUser(null);
       }
     } catch (err) {
+      setUser(null);
       console.warn('Failed to load user account:', err);
     }
   };
@@ -43,7 +46,17 @@ export function App() {
   }, []);
 
   // When user switches or logs in
-  const handleUserChanged = (newUser: UserAccount) => {
+  const handleUserChanged = (newUser: UserAccount | null) => {
+    if (!newUser) {
+      setUser(null);
+      setActiveScan(null);
+      setActiveReport(null);
+      setActiveComparison(null);
+      setActiveScanId(null);
+      setActiveTab('home');
+      return;
+    }
+
     setUser(newUser);
     // If viewing a scan that might not belong to new user, reset to home or history
     if (activeScan && activeScan.userId !== newUser.id) {

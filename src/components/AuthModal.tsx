@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { UserAccount } from '../types';
 import { authFetch, setSessionToken, removeSessionToken } from '../utils/api';
-import { X, Lock, Mail, User, ShieldCheck, ArrowRight, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { X, Lock, Mail, User, ShieldCheck, ArrowRight, CheckCircle2, AlertCircle, RefreshCw, LogOut } from 'lucide-react';
 
 interface AuthModalProps {
   currentUser: UserAccount | null;
   isOpen: boolean;
   onClose: () => void;
-  onUserChanged: (user: UserAccount) => void;
+  onUserChanged: (user: UserAccount | null) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -16,14 +16,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onUserChanged,
 }) => {
-  const [mode, setMode] = useState<'switch' | 'login' | 'register'>('switch');
+  const [mode, setMode] = useState<'account' | 'login' | 'register' | 'switch'>('account');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Available test accounts for rapid switching
+  // Available test accounts (only populated in dev/test environment)
   const [testAccounts, setTestAccounts] = useState<Array<{
     id: string;
     email: string;
@@ -36,19 +36,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (isOpen) {
       setError(null);
       setSuccess(null);
-      loadAccounts();
+      setMode(currentUser ? 'account' : 'login');
+      loadAccountsIfAvailable();
     }
-  }, [isOpen]);
+  }, [isOpen, currentUser]);
 
-  const loadAccounts = async () => {
+  const loadAccountsIfAvailable = async () => {
     try {
       const res = await authFetch('/api/auth/accounts');
       if (res.ok) {
         const data = await res.json();
-        setTestAccounts(data);
+        setTestAccounts(Array.isArray(data) ? data : []);
+      } else {
+        setTestAccounts([]);
       }
     } catch {
-      // Ignore
+      setTestAccounts([]);
     }
   };
 
@@ -103,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       setSessionToken(data.token);
       onUserChanged(data.user);
-      setSuccess('Account created! 10 free minutes added.');
+      setSuccess('Account created! 10 free minutes starter credits added.');
       setTimeout(() => onClose(), 600);
     } catch (err: any) {
       setError(err.message);
@@ -147,13 +150,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // Ignore
     }
     removeSessionToken();
-    // Re-fetch default user
-    const res = await fetch('/api/user');
-    if (res.ok) {
-      const defaultUser = await res.json();
-      onUserChanged(defaultUser);
-    }
-    onClose();
+    onUserChanged(null);
+    setSuccess('Signed out successfully.');
+    setTimeout(() => {
+      onClose();
+    }, 500);
   };
 
   return (
@@ -181,30 +182,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="px-6 py-3 bg-stone-100 border-b border-stone-200 flex items-center justify-between text-xs">
           <div>
             <span className="text-stone-500">Active Identity: </span>
-            <span className="font-semibold text-stone-800">{currentUser?.email || 'Guest User'}</span>
+            <span className="font-semibold text-stone-800">{currentUser?.email || 'Anonymous (Sign In Required)'}</span>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded uppercase font-bold text-[10px] bg-stone-200 text-stone-700">
-              {currentUser?.plan || 'Free'}
-            </span>
-            <span className="font-semibold text-emerald-600">
-              {currentUser?.creditsRemaining ?? 0}m
-            </span>
-          </div>
+          {currentUser && (
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded uppercase font-bold text-[10px] bg-stone-200 text-stone-700">
+                {currentUser.plan}
+              </span>
+              <span className="font-semibold text-emerald-600">
+                {currentUser.creditsRemaining}m
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Tab Switcher */}
         <div className="flex border-b border-stone-200 bg-stone-50/50 text-xs font-semibold">
-          <button
-            onClick={() => { setMode('switch'); setError(null); }}
-            className={`flex-1 py-3 text-center transition-colors border-b-2 ${
-              mode === 'switch'
-                ? 'border-rose-600 text-stone-900 bg-white font-bold'
-                : 'border-transparent text-stone-500 hover:text-stone-800'
-            }`}
-          >
-            Switch Account
-          </button>
+          {currentUser && (
+            <button
+              onClick={() => { setMode('account'); setError(null); }}
+              className={`flex-1 py-3 text-center transition-colors border-b-2 ${
+                mode === 'account'
+                  ? 'border-rose-600 text-stone-900 bg-white font-bold'
+                  : 'border-transparent text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              My Account
+            </button>
+          )}
+
           <button
             onClick={() => { setMode('login'); setError(null); }}
             className={`flex-1 py-3 text-center transition-colors border-b-2 ${
@@ -215,6 +221,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           >
             Sign In
           </button>
+
           <button
             onClick={() => { setMode('register'); setError(null); }}
             className={`flex-1 py-3 text-center transition-colors border-b-2 ${
@@ -225,6 +232,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           >
             Register
           </button>
+
+          {/* Test Accounts Tab — Only displayed if test endpoint is enabled */}
+          {testAccounts.length > 0 && (
+            <button
+              onClick={() => { setMode('switch'); setError(null); }}
+              className={`flex-1 py-3 text-center transition-colors border-b-2 ${
+                mode === 'switch'
+                  ? 'border-rose-600 text-stone-900 bg-white font-bold'
+                  : 'border-transparent text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              Test Accounts
+            </button>
+          )}
         </div>
 
         {/* Feedback Notices */}
@@ -243,12 +264,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
         </div>
 
-        {/* Tab 1: Instant Switch Test Accounts */}
-        {mode === 'switch' && (
+        {/* Tab 0: Authenticated Account View */}
+        {mode === 'account' && currentUser && (
+          <div className="p-6 space-y-5">
+            <div className="p-4 rounded-xl bg-stone-50 border border-stone-200 space-y-3 text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-stone-200">
+                <span className="text-stone-500">Email Address</span>
+                <span className="font-bold text-stone-900">{currentUser.email}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-stone-200">
+                <span className="text-stone-500">Active Plan</span>
+                <span className="font-bold uppercase text-stone-900">{currentUser.plan}</span>
+              </div>
+              <div className="flex justify-between items-center pb-2 border-b border-stone-200">
+                <span className="text-stone-500">Available Credits</span>
+                <span className="font-bold text-emerald-600 font-mono">{currentUser.creditsRemaining} minutes</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-stone-500">Lifetime Scans</span>
+                <span className="font-bold text-stone-900">{currentUser.totalScansCount}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full py-2.5 bg-stone-900 hover:bg-stone-850 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sign Out</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 1: Test Accounts (Dev/Test only) */}
+        {mode === 'switch' && testAccounts.length > 0 && (
           <div className="p-6 space-y-4">
             <div>
               <p className="text-xs text-stone-600">
-                Select an isolated creator identity to verify that scan archives, reports, and paid subscriptions are strictly scoped:
+                Select an isolated creator identity for testing cross-account data boundaries:
               </p>
             </div>
 
@@ -296,23 +352,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 );
               })}
             </div>
-
-            <div className="pt-2 border-t border-stone-100 flex items-center justify-between text-xs">
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-stone-500 hover:text-stone-800 font-medium"
-              >
-                Sign out
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode('register')}
-                className="text-rose-600 hover:text-rose-700 font-semibold"
-              >
-                + Register New Account
-              </button>
-            </div>
           </div>
         )}
 
@@ -351,9 +390,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
                 />
               </div>
-              <p className="text-[11px] text-stone-400 mt-1">
-                Demo passwords: <code>creator123</code>, <code>pro123</code>, <code>free123</code>
-              </p>
             </div>
 
             <button
