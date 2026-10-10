@@ -211,27 +211,48 @@ export class InMemoryStorageRepository implements IStorageRepository {
   }
 
   private load() {
-    try {
-      if (fs.existsSync(this.dataFile)) {
-        const raw = fs.readFileSync(this.dataFile, 'utf-8');
-        const parsed = JSON.parse(raw);
-        this.state = {
-          users: parsed.users || {},
-          sessions: parsed.sessions || {},
-          uploads: parsed.uploads || {},
-          channelProfiles: parsed.channelProfiles || {},
-          scans: parsed.scans || {},
-          reports: parsed.reports || {},
-          evidence: parsed.evidence || {},
-          comparisons: parsed.comparisons || {},
-          usage: parsed.usage || [],
-          webhookEvents: parsed.webhookEvents || {},
-          subscriptions: parsed.subscriptions || {},
-        };
-      }
-    } catch (err) {
-      console.warn('[Storage] Failed to read store.json, using fresh in-memory storage:', err);
+    if (!fs.existsSync(this.dataFile)) {
+      // Normal first startup: file does not exist yet
+      return;
     }
+
+    let raw: string;
+    try {
+      raw = fs.readFileSync(this.dataFile, 'utf-8');
+    } catch (readErr: any) {
+      const message = `[Storage] Failed to read existing storage file '${this.dataFile}': ${readErr.message || readErr}`;
+      console.error(message);
+      throw new Error(message);
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (jsonErr: any) {
+      const message = `[Storage] Existing storage file '${this.dataFile}' contains malformed JSON: ${jsonErr.message || jsonErr}`;
+      console.error(message);
+      throw new Error(message);
+    }
+
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      const message = `[Storage] Existing storage file '${this.dataFile}' has invalid root structure (expected a non-null object, got ${Array.isArray(parsed) ? 'array' : typeof parsed})`;
+      console.error(message);
+      throw new Error(message);
+    }
+
+    this.state = {
+      users: parsed.users || {},
+      sessions: parsed.sessions || {},
+      uploads: parsed.uploads || {},
+      channelProfiles: parsed.channelProfiles || {},
+      scans: parsed.scans || {},
+      reports: parsed.reports || {},
+      evidence: parsed.evidence || {},
+      comparisons: parsed.comparisons || {},
+      usage: parsed.usage || [],
+      webhookEvents: parsed.webhookEvents || {},
+      subscriptions: parsed.subscriptions || {},
+    };
   }
 
   public save() {
