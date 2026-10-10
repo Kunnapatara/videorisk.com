@@ -5,7 +5,7 @@ import fs from 'fs';
 import { mediaInspector } from '../src/server/pipeline/mediaInspector';
 import { thumbnailInspector, ThumbnailInspectionError } from '../src/server/pipeline/thumbnailInspector';
 import { audioProcessor } from '../src/server/pipeline/audioProcessor';
-import { videoProcessor } from '../src/server/pipeline/videoProcessor';
+import { videoProcessor, VideoProcessingError } from '../src/server/pipeline/videoProcessor';
 import { policyIntelligenceEngine } from '../src/server/intelligence/policyIntelligence';
 import { contextAnalyzer } from '../src/server/intelligence/contextAnalyzer';
 import { ChannelContextProfile, MediaMetadata } from '../src/types';
@@ -90,7 +90,29 @@ export async function runProductCapabilitiesTests() {
       ], { timeout: 15000 });
     }
 
-    // 5. Corrupt file
+    // 5. Synthetic multi-scene video (3 seconds, 3 distinct colors/scenes)
+    const multiSceneVideoPath = path.join(testDir, 'synth_multi_scene.mp4');
+    if (!fs.existsSync(multiSceneVideoPath)) {
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-f', 'lavfi', '-i', 'color=c=red:s=320x240:d=1[v1];color=c=blue:s=320x240:d=1[v2];color=c=green:s=320x240:d=1[v3];[v1][v2][v3]concat=n=3:v=1',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+        multiSceneVideoPath
+      ], { timeout: 20000 });
+    }
+
+    // 6. Synthetic static video (2 seconds, single continuous color)
+    const staticVideoPath = path.join(testDir, 'synth_static.mp4');
+    if (!fs.existsSync(staticVideoPath)) {
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-f', 'lavfi', '-i', 'color=c=navy:s=320x240:d=2',
+        '-c:v', 'libx264', '-pix_fmt', 'yuv420p',
+        staticVideoPath
+      ], { timeout: 20000 });
+    }
+
+    // 7. Corrupt file
     fs.writeFileSync(corruptFilePath, 'THIS_IS_NOT_A_VALID_MEDIA_STREAM_DATA_HEADER');
 
     // ---------------------------------------------------------
@@ -138,9 +160,56 @@ export async function runProductCapabilitiesTests() {
     assert(corruptThumbHandled === true, 'Corrupt image input is safely caught and rejected');
 
     // ---------------------------------------------------------
-    // 3. CONTEXT INTELLIGENCE & CHANNEL PROFILE
+    // 3. REAL VIDEO SCENE ANALYSIS & PIPELINE INTEGRITY
     // ---------------------------------------------------------
-    console.log('\n[3. Context Intelligence]');
+    console.log('\n[3. Real Video Scene Analysis Pipeline]');
+
+    // 3.1 Multi-scene video with distinct scene changes
+    const metaMulti = await mediaInspector.inspect(multiSceneVideoPath, 'synth_multi_scene.mp4');
+    const videoResMulti = await videoProcessor.analyzeVideo(multiSceneVideoPath, metaMulti, 'standard');
+    assert(videoResMulti.scenesCount === 3, 'Multi-scene video detects exactly 3 scenes from real cut transitions');
+    assert(videoResMulti.framesSampled >= 1, 'Sampled frames count is measured and distinct from scene count');
+    assert(videoResMulti.averagePacingSeconds >= 0.8 && videoResMulti.averagePacingSeconds <= 1.2, 'Average pacing computed accurately from real scene cut intervals (~1.0s)');
+    assert(videoResMulti.hasSlideshowPattern === false, 'Dynamic scene cuts do not falsely trigger slideshow pattern');
+    assert(fs.existsSync(videoResMulti.tempFramesDir), 'Temporary frames directory created during scene analysis');
+    await videoProcessor.cleanupFrames(videoResMulti.tempFramesDir);
+    assert(!fs.existsSync(videoResMulti.tempFramesDir), 'Temporary frames directory safely cleaned up');
+
+    // 3.2 Continuous static video (no scene cuts)
+    const metaStatic = await mediaInspector.inspect(staticVideoPath, 'synth_static.mp4');
+    const videoResStatic = await videoProcessor.analyzeVideo(staticVideoPath, metaStatic, 'standard');
+    assert(videoResStatic.scenesCount === 1, 'Continuous static video correctly reports 1 scene (0 cuts detected)');
+    assert(videoResStatic.averagePacingSeconds >= 1.8 && videoResStatic.averagePacingSeconds <= 2.2, 'Static video pacing reflects continuous duration without artificial cut inflation');
+    assert(videoResStatic.framesSampled >= 1, 'Static video frames sampled reflects actual extracted frames');
+    await videoProcessor.cleanupFrames(videoResStatic.tempFramesDir);
+    assert(!fs.existsSync(videoResStatic.tempFramesDir), 'Static video temporary frames safely cleaned up');
+
+    // 3.3 Fail closed on corrupt media: throws clear error without returning mock/fallback data
+    let videoCorruptThrown = false;
+    let videoCorruptError: any = null;
+    try {
+      await videoProcessor.analyzeVideo(corruptFilePath, metaSilent, 'standard');
+    } catch (err: any) {
+      videoCorruptThrown = true;
+      videoCorruptError = err;
+    }
+    assert(videoCorruptThrown === true, 'Corrupt media file causes analyzeVideo to fail closed and throw error');
+    assert(videoCorruptError instanceof VideoProcessingError, 'Thrown error is an instance of VideoProcessingError');
+    assert(!videoCorruptError.scenesCount, 'No mock or fallback analysis result returned on corrupt file');
+
+    // 3.4 Fail closed on missing file
+    let missingVideoThrown = false;
+    try {
+      await videoProcessor.analyzeVideo(path.join(testDir, 'does_not_exist.mp4'), metaSilent, 'standard');
+    } catch (err: any) {
+      missingVideoThrown = true;
+    }
+    assert(missingVideoThrown === true, 'Non-existent video file safely throws VideoProcessingError');
+
+    // ---------------------------------------------------------
+    // 4. CONTEXT INTELLIGENCE & CHANNEL PROFILE
+    // ---------------------------------------------------------
+    console.log('\n[4. Context Intelligence]');
 
     const mockProfile: ChannelContextProfile = {
       id: 'cp_test_1',
@@ -181,9 +250,9 @@ export async function runProductCapabilitiesTests() {
     assert(contextWithoutProfile.uncertaintyReason === 'AMBIGUOUS_CONTEXT', 'Missing profile and generic title honestly declares AMBIGUOUS_CONTEXT');
 
     // ---------------------------------------------------------
-    // 4. PUBLISHING RISK REPORT & EVIDENCE TIMELINE
+    // 5. PUBLISHING RISK REPORT & EVIDENCE TIMELINE
     // ---------------------------------------------------------
-    console.log('\n[4. Publishing Risk Report Generation]');
+    console.log('\n[5. Publishing Risk Report Generation]');
 
     const audioRes = await audioProcessor.analyzeAudio(validVideoPath, metaWithAudio);
     const videoRes = await videoProcessor.analyzeVideo(validVideoPath, metaWithAudio, 'standard');
@@ -225,9 +294,9 @@ export async function runProductCapabilitiesTests() {
     assert(report.policyConnections.length >= 3, 'Policy connections map to YPP, Originality, and Disclosures');
 
     // ---------------------------------------------------------
-    // 5. RE-SCAN COMPARISON DELTA
+    // 6. RE-SCAN COMPARISON DELTA
     // ---------------------------------------------------------
-    console.log('\n[5. Re-scan Comparison Delta]');
+    console.log('\n[6. Re-scan Comparison Delta]');
 
     const revisedReport = {
       ...report,

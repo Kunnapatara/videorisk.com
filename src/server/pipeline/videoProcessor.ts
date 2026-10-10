@@ -6,6 +6,13 @@ import { MediaMetadata, ScanMode } from '../../types';
 
 const execFileAsync = promisify(execFile);
 
+export class VideoProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'VideoProcessingError';
+  }
+}
+
 export interface VideoAnalysisResult {
   scenesCount: number;
   framesSampled: number;
@@ -25,7 +32,16 @@ export class VideoProcessor {
     metadata: MediaMetadata, 
     scanMode: ScanMode
   ): Promise<VideoAnalysisResult> {
-    const dur = Math.max(1, metadata.durationSeconds);
+    if (!fs.existsSync(videoPath)) {
+      throw new VideoProcessingError(`Video file not found at ${videoPath}`);
+    }
+
+    const stats = await fs.promises.stat(videoPath);
+    if (stats.size === 0) {
+      throw new VideoProcessingError('Video file is empty (0 bytes).');
+    }
+
+    const dur = Math.max(0.1, metadata.durationSeconds || 0.1);
     const uniqueJobSubdir = `job_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const tempDir = path.resolve(process.cwd(), 'uploads', 'frames', uniqueJobSubdir);
     
@@ -33,11 +49,15 @@ export class VideoProcessor {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    const sampleInterval = scanMode === 'deep' ? 3 : 8;
-    const expectedSamples = Math.min(60, Math.max(3, Math.ceil(dur / sampleInterval)));
+    const baseInterval = scanMode === 'deep' ? 3 : 8;
+    const sampleInterval = dur < baseInterval 
+      ? Math.max(0.5, parseFloat((dur / Math.min(3, Math.max(1, Math.floor(dur)))).toFixed(2)))
+      : baseInterval;
+    const expectedSamples = Math.min(60, Math.max(1, Math.ceil(dur / sampleInterval)));
 
     try {
-      const args = [
+      // 1. Extract sampled visual frames
+      const extractArgs = [
         '-y',
         '-i', videoPath,
         '-vf', `fps=1/${sampleInterval},scale=160:90`,
@@ -45,23 +65,69 @@ export class VideoProcessor {
         path.join(tempDir, 'frame_%03d.jpg')
       ];
 
-      await execFileAsync('ffmpeg', args, { timeout: 45000 });
+      await execFileAsync('ffmpeg', extractArgs, { timeout: 45000 });
 
-      // Read extracted frames
+      // Read extracted frames from disk
       const frameFiles = fs.readdirSync(tempDir).filter(f => f.endsWith('.jpg')).sort();
       const framesCount = frameFiles.length;
 
-      // Estimate scenes based on sampling
-      const estimatedScenes = Math.max(1, Math.round(dur / 4.5));
-      const avgPacing = dur / Math.max(1, estimatedScenes);
-      const hasSlideshowPattern = avgPacing > 15;
+      if (framesCount === 0) {
+        throw new VideoProcessingError('Failed to extract visual frames from video stream.');
+      }
 
+      // 2. Measure actual scene changes from visual signal differences using ffmpeg select filter
+      const sceneArgs = [
+        '-y',
+        '-i', videoPath,
+        '-vf', "scale='min(320,iw)':-2,select='gt(scene,0.3)',metadata=print:file=-",
+        '-f', 'null',
+        '-'
+      ];
+
+      const { stdout } = await execFileAsync('ffmpeg', sceneArgs, { timeout: 45000 });
+
+      // Parse detected scene cut timestamps
+      const cutTimestamps: number[] = [];
+      const regex = /pts_time:([0-9.]+)/g;
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(stdout)) !== null) {
+        const ts = parseFloat(match[1]);
+        if (!isNaN(ts)) {
+          // Avoid duplicate triggers within 0.3s of each other
+          if (cutTimestamps.length === 0 || ts - cutTimestamps[cutTimestamps.length - 1] >= 0.3) {
+            cutTimestamps.push(parseFloat(ts.toFixed(2)));
+          }
+        }
+      }
+
+      // Calculate scenes count and average pacing strictly from detected cuts
+      let scenesCount: number;
+      let avgPacing: number;
+
+      if (cutTimestamps.length === 0) {
+        // Continuous single scene without detected cut transitions
+        scenesCount = 1;
+        avgPacing = dur;
+      } else {
+        scenesCount = cutTimestamps.length + 1;
+        const sceneDurations: number[] = [];
+        let prev = 0;
+        for (const cut of cutTimestamps) {
+          sceneDurations.push(Math.max(0.1, cut - prev));
+          prev = cut;
+        }
+        sceneDurations.push(Math.max(0.1, dur - prev));
+        const totalPacing = sceneDurations.reduce((sum, d) => sum + d, 0);
+        avgPacing = totalPacing / sceneDurations.length;
+      }
+
+      const hasSlideshowPattern = (scenesCount > 1 && avgPacing > 15) || (scenesCount === 1 && dur >= 30);
       const repeatedFootageSegments: VideoAnalysisResult['repeatedFootageSegments'] = [];
       const templateRepetitions: VideoAnalysisResult['templateRepetitions'] = [];
 
       return {
-        scenesCount: Math.max(framesCount, estimatedScenes),
-        framesSampled: Math.max(framesCount, 1),
+        scenesCount,
+        framesSampled: framesCount,
         hasSlideshowPattern,
         repeatedFootageSegments,
         templateRepetitions,
@@ -69,17 +135,14 @@ export class VideoProcessor {
         tempFramesDir: tempDir
       };
     } catch (err: any) {
-      console.warn('[VideoProcessor] Heuristic fallback for video processing:', err?.message || err);
-      const estScenes = Math.max(1, Math.round(dur / 5));
-      return {
-        scenesCount: estScenes,
-        framesSampled: Math.min(30, Math.max(1, Math.ceil(dur / 10))),
-        hasSlideshowPattern: false,
-        repeatedFootageSegments: [],
-        templateRepetitions: [],
-        averagePacingSeconds: 5.0,
-        tempFramesDir: tempDir
-      };
+      // Ensure temp directory is cleaned up immediately on error to avoid disk leak
+      await this.cleanupFrames(tempDir);
+      if (err instanceof VideoProcessingError) {
+        throw err;
+      }
+      throw new VideoProcessingError(
+        `Video scene analysis failed: ${err?.message || 'FFmpeg process error'}`
+      );
     }
   }
 

@@ -2,7 +2,7 @@ import { storage } from '../storage';
 import { mediaInspector, MediaInspectionError } from './mediaInspector';
 import { proxyGenerator } from './proxyGenerator';
 import { audioProcessor } from './audioProcessor';
-import { videoProcessor } from './videoProcessor';
+import { videoProcessor, VideoProcessingError } from './videoProcessor';
 import { thumbnailInspector } from './thumbnailInspector';
 import { policyIntelligenceEngine } from '../intelligence/policyIntelligence';
 import { creditService } from '../services/creditService';
@@ -31,7 +31,7 @@ export class JobOrchestrator {
 
       await storage.scans.updateScan(scanId, {
         status: 'FAILED',
-        error: err instanceof MediaInspectionError 
+        error: (err instanceof MediaInspectionError || err instanceof VideoProcessingError) 
           ? err.message 
           : 'We couldn’t complete this scan. Your video was not published or shared. Credits have been refunded. Please try again.'
       });
