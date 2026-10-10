@@ -1,8 +1,16 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs';
 import { MediaMetadata } from '../../types';
 
 const execFileAsync = promisify(execFile);
+
+export class AudioProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AudioProcessingError';
+  }
+}
 
 export interface AudioAnalysisResult {
   hasVoiceover: boolean;
@@ -20,6 +28,10 @@ export class AudioProcessor {
    * Uses execFile directly without shell
    */
   public async analyzeAudio(videoPath: string, metadata: MediaMetadata): Promise<AudioAnalysisResult> {
+    if (!fs.existsSync(videoPath)) {
+      throw new AudioProcessingError(`Audio/video file not found at ${videoPath}`);
+    }
+
     if (!metadata.hasAudio) {
       return {
         hasVoiceover: false,
@@ -46,7 +58,10 @@ export class AudioProcessor {
         const { stdout, stderr } = await execFileAsync('ffmpeg', args, { timeout: 30000 });
         output = (stdout || '') + (stderr || '');
       } catch (procErr: any) {
-        // ffmpeg returns exit 0 or stderr with stats
+        // If ffmpeg errored with fatal exit code
+        if (procErr.code && procErr.code !== 0 && !procErr.stderr?.includes('mean_volume')) {
+          throw new AudioProcessingError(`FFmpeg audio analysis failed: ${procErr.message || procErr}`);
+        }
         output = (procErr.stdout || '') + (procErr.stderr || '');
       }
 
@@ -67,7 +82,7 @@ export class AudioProcessor {
         }
       }
 
-      const dur = Math.max(1, metadata.durationSeconds);
+      const dur = Math.max(0.1, metadata.durationSeconds || 0.1);
       const silenceRatio = Math.min(1, totalSilenceDuration / dur);
       const activeRatio = Math.max(0, 1 - silenceRatio);
       
@@ -76,55 +91,51 @@ export class AudioProcessor {
       const meanVol = meanVolumeMatch ? parseFloat(meanVolumeMatch[1]) : -20;
       const isAudible = meanVol > -50;
 
-      const voiceoverRatio = isAudible ? Math.min(0.85, Math.max(0.15, activeRatio * 0.7)) : 0;
-      const hasMusicDetected = isAudible && activeRatio > 0.3;
+      // Distinguish measurable acoustic activity from verified speech:
+      // Volume and silence filters measure sound energy, NOT speech or narrator identity.
+      // Therefore, speech presence remains unverified by acoustic filters alone.
+      const hasVoiceover = false;
+      const voiceoverRatio = 0;
+      const hasMusicDetected = false;
 
-      // Add voice segments for active intervals if any
+      // Active intervals contain acoustic energy (music, speech, sfx, or ambient)
       if (isAudible) {
         if (segments.length === 0) {
-          segments.push({ start: 0, end: dur, type: 'voice' });
+          segments.push({ start: 0, end: dur, type: 'mixed' });
         } else {
-          // Fill gaps between silence as voice
+          // Fill gaps between silence as mixed acoustic activity
           let curr = 0;
-          const voiceSegments: AudioAnalysisResult['segments'] = [];
+          const activeSegments: AudioAnalysisResult['segments'] = [];
           for (const s of segments) {
             if (s.start > curr + 1) {
-              voiceSegments.push({ start: curr, end: s.start, type: 'voice' });
+              activeSegments.push({ start: curr, end: s.start, type: 'mixed' });
             }
             curr = s.end;
           }
           if (curr < dur) {
-            voiceSegments.push({ start: curr, end: dur, type: 'voice' });
+            activeSegments.push({ start: curr, end: dur, type: 'mixed' });
           }
-          segments.push(...voiceSegments);
+          segments.push(...activeSegments);
           segments.sort((a, b) => a.start - b.start);
         }
       }
 
       return {
-        hasVoiceover: voiceoverRatio > 0.1,
-        voiceoverRatio: parseFloat(voiceoverRatio.toFixed(2)),
+        hasVoiceover,
+        voiceoverRatio,
         silenceRatio: parseFloat(silenceRatio.toFixed(2)),
         hasMusicDetected,
         advertiserSpeechFlags: [],
         segments,
         transcriptSummary: isAudible 
-          ? `Audio stream inspected. Voice and acoustic energy detected (${Math.round(voiceoverRatio * 100)}% speech activity).`
-          : 'Low volume or quiet track.'
+          ? `Audio stream inspected. Acoustic energy present across ${Math.round(activeRatio * 100)}% of the timeline (mean volume ${meanVol} dB). Speech and voice narration are unverified without transcript analysis.`
+          : 'Low volume or quiet audio track.'
       };
     } catch (err: any) {
-      console.warn('[AudioProcessor] Heuristic fallback for audio analysis:', err?.message || err);
-      return {
-        hasVoiceover: true,
-        voiceoverRatio: 0.65,
-        silenceRatio: 0.15,
-        hasMusicDetected: true,
-        advertiserSpeechFlags: [],
-        segments: [
-          { start: 0, end: metadata.durationSeconds, type: 'voice' }
-        ],
-        transcriptSummary: 'Audio stream analyzed via waveform inspection.'
-      };
+      if (err instanceof AudioProcessingError) {
+        throw err;
+      }
+      throw new AudioProcessingError(`Audio analysis failed: ${err?.message || 'FFmpeg process error'}`);
     }
   }
 }

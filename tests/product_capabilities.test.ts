@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { mediaInspector } from '../src/server/pipeline/mediaInspector';
 import { thumbnailInspector, ThumbnailInspectionError } from '../src/server/pipeline/thumbnailInspector';
-import { audioProcessor } from '../src/server/pipeline/audioProcessor';
+import { audioProcessor, AudioProcessingError } from '../src/server/pipeline/audioProcessor';
 import { videoProcessor, VideoProcessingError } from '../src/server/pipeline/videoProcessor';
 import { policyIntelligenceEngine } from '../src/server/intelligence/policyIntelligence';
 import { contextAnalyzer } from '../src/server/intelligence/contextAnalyzer';
@@ -112,7 +112,18 @@ export async function runProductCapabilitiesTests() {
       ], { timeout: 20000 });
     }
 
-    // 7. Corrupt file
+    // 7. Synthetic 30-second continuous static video (single scene >= 30s)
+    const static30sVideoPath = path.join(testDir, 'synth_static_30s.mp4');
+    if (!fs.existsSync(static30sVideoPath)) {
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-f', 'lavfi', '-i', 'color=c=navy:s=160x120:d=30',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+        static30sVideoPath
+      ], { timeout: 25000 });
+    }
+
+    // 8. Corrupt file
     fs.writeFileSync(corruptFilePath, 'THIS_IS_NOT_A_VALID_MEDIA_STREAM_DATA_HEADER');
 
     // ---------------------------------------------------------
@@ -311,6 +322,120 @@ export async function runProductCapabilitiesTests() {
     assert(comparison.revisedRisk === 'LOW_RISK', 'Comparison delta captures risk reduction');
     assert(typeof comparison.comparisonSummary === 'string', 'Summary recorded in comparison delta');
     assert(typeof comparison.signalsDelta === 'number', 'Numerical signals delta recorded in comparison');
+
+    // ---------------------------------------------------------
+    // 7. EVIDENCE INTEGRITY & GROUNDED RISK CLAIMS
+    // ---------------------------------------------------------
+    console.log('\n[7. Evidence Integrity & Grounded Risk Claims Verification]');
+
+    // 7.1 Music-only / acoustic audio is not automatically reported as verified creator narration
+    const audioResSynth = await audioProcessor.analyzeAudio(validVideoPath, metaWithAudio);
+    assert(audioResSynth.hasVoiceover === false, '1. Pure acoustic audio / tone is not automatically reported as verified creator narration');
+    assert(audioResSynth.voiceoverRatio === 0, '1. Unverified audio does not assert a verified speech ratio');
+
+    const videoResTemp = await videoProcessor.analyzeVideo(validVideoPath, metaWithAudio, 'standard');
+    await videoProcessor.cleanupFrames(videoResTemp.tempFramesDir);
+
+    const timelineAudio = policyIntelligenceEngine.generateEvidenceTimeline({
+      scanId: 'scan_audio_check',
+      metadata: metaWithAudio,
+      scanMode: 'standard',
+      audioResult: audioResSynth,
+      videoResult: videoResTemp,
+      videoTitle: 'Acoustic Track Demo',
+      channelProfile: null // No profile to ensure no user-declared assumption
+    });
+
+    assert(
+      !timelineAudio.some(t => t.type === 'original_narration' || t.label.includes('Original Voice Narration Detected')),
+      '1. Timeline does not claim verified creator narration for pure acoustic energy'
+    );
+
+    // 7.2 Acoustic activity without reliable speech evidence does not produce a high-confidence narration claim
+    const acousticItems = timelineAudio.filter(t => t.domain === 'video_audio' && t.type.includes('acoustic'));
+    assert(acousticItems.length > 0, '2. Acoustic audio activity is reported as a measurable observation');
+    for (const item of acousticItems) {
+      assert(item.confidenceLevel !== 'HIGH', '2. Acoustic activity does not claim HIGH confidence narration');
+      assert(item.confidence <= 0.75, '2. Confidence score reflects unverified speech limitation (<= 0.75)');
+      assert(Boolean(item.limitations?.includes('transcript') || item.limitations?.includes('verify speech')), '2. Limitations explicitly state speech is unverified without transcript analysis');
+    }
+
+    // 7.3 A static video lasting at least 30 seconds is not automatically classified as a slideshow
+    const metaStatic30s = await mediaInspector.inspect(static30sVideoPath, 'synth_static_30s.mp4');
+    const videoResStatic30s = await videoProcessor.analyzeVideo(static30sVideoPath, metaStatic30s, 'standard');
+    assert(videoResStatic30s.hasSlideshowPattern === false, '3. Static video lasting 30s is NOT classified as a slideshow');
+    assert(videoResStatic30s.scenesCount === 1, '3. Single continuous shot correctly detected (1 scene)');
+    await videoProcessor.cleanupFrames(videoResStatic30s.tempFramesDir);
+
+    const timelineStatic30s = policyIntelligenceEngine.generateEvidenceTimeline({
+      scanId: 'scan_static_30s',
+      metadata: metaStatic30s,
+      scanMode: 'standard',
+      audioResult: audioResSynth,
+      videoResult: videoResStatic30s,
+      videoTitle: '30s Continuous Shot',
+      channelProfile: null
+    });
+    assert(
+      !timelineStatic30s.some(t => t.category === 'inauthentic_pattern' || t.label.includes('Slideshow Pattern')),
+      '3. Timeline does not assert inauthentic pattern or slideshow for 30s static video'
+    );
+
+    // 7.4 A video with scene cuts is not automatically classified as inauthentic or mass-produced content
+    const timelineMultiScene = policyIntelligenceEngine.generateEvidenceTimeline({
+      scanId: 'scan_multi_cuts',
+      metadata: metaMulti,
+      scanMode: 'standard',
+      audioResult: audioResSynth,
+      videoResult: videoResMulti,
+      videoTitle: 'Multi Scene Video',
+      channelProfile: null
+    });
+    assert(
+      !timelineMultiScene.some(t => t.category === 'inauthentic_pattern'),
+      '4. Video with scene cuts is not classified as inauthentic or mass-produced content'
+    );
+    const pacingItem = timelineMultiScene.find(t => t.type === 'scene_pacing_observation');
+    assert(!!pacingItem, '4. Scene transitions are reported as an informative pacing observation');
+    assert(pacingItem?.severity === 'info', '4. Pacing observation severity is strictly info (not a violation/warning)');
+
+    // 7.5 Low estimated narration does not fabricate a reused-content finding for an arbitrary video interval
+    const audioResSilent = await audioProcessor.analyzeAudio(silentVideoPath, metaSilent);
+    const timelineSilent = policyIntelligenceEngine.generateEvidenceTimeline({
+      scanId: 'scan_silent_check',
+      metadata: metaSilent,
+      scanMode: 'standard',
+      audioResult: audioResSilent,
+      videoResult: videoResMulti,
+      videoTitle: 'Silent Video Check',
+      channelProfile: null
+    });
+    assert(
+      !timelineSilent.some(t => t.category === 'reused_content' && t.severity !== 'info'),
+      '5. Silent video / low narration does not fabricate reused-content findings'
+    );
+    assert(
+      !timelineSilent.some(t => t.type === 'third_party_material'),
+      '5. No arbitrary [20%, 50%] third-party material interval is fabricated'
+    );
+
+    const reportSilent = policyIntelligenceEngine.buildReport({
+      scanId: 'scan_silent_check',
+      metadata: metaSilent,
+      scanMode: 'standard',
+      audioResult: audioResSilent,
+      videoResult: videoResMulti,
+      videoTitle: 'Silent Video Check',
+      channelProfile: null
+    }, timelineSilent);
+    assert(reportSilent.reusedContentRatio === 0, '5. Reused content ratio is 0% when no direct evidence of third-party material exists');
+
+    // 7.6 A finding that cannot be verified is clearly distinguished from a confirmed observation
+    const silentItem = timelineSilent.find(t => t.type === 'silent_audio_track');
+    assert(!!silentItem, '6. Absence of audio is recorded with measured provenance');
+    assert(silentItem?.severity === 'info', '6. Absence of audio is not marked as high severity policy violation');
+    assert(reportSilent.domainReports.video_audio.limitations.includes('does not verify speech content'), '6. Limitations explicitly distinguish measurable signals from unverified conclusions');
+    assert(reportSilent.domainReports.video_audio.limitations.includes('Content ID'), '6. Limitations explicitly declare VideoRisk does not query private Content ID databases');
 
     console.log(`\n======================================================`);
     console.log(`TEST SUITE 2 COMPLETE: ${passed}/${total} assertions passed!`);

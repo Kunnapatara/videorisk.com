@@ -127,46 +127,48 @@ export class PolicyIntelligenceEngine {
     // DOMAIN 1: VIDEO & AUDIO EVIDENCE
     // ==========================================
 
-    // Audio Voiceover Analysis
-    if (audioResult.hasVoiceover) {
-      const voiceSegments = audioResult.segments.filter(s => s.type === 'voice');
-      if (voiceSegments.length > 0) {
-        for (const seg of voiceSegments.slice(0, 3)) {
-          addItem({
-            domain: 'video_audio',
-            start: seg.start,
-            end: seg.end,
-            type: 'original_narration',
-            category: 'original_contribution',
-            severity: 'info',
-            confidence: 0.92,
-            confidenceLevel: 'HIGH',
-            provenance: 'ffmpeg:silencedetect:voice_band',
-            source: 'audio_spectrum',
-            label: '🟢 Original Voice Narration Detected',
-            details: `Acoustic energy identified creator voice presence (${this.formatTimestamp(seg.start)}–${this.formatTimestamp(seg.end)}).`,
-            contextualInterpretation: contextResult.isCommentaryOrCritique
-              ? 'Voiceover serves as commentary/critique, supporting transformative fair-use context.'
-              : 'Consistent voiceover demonstrates original creator contribution.',
-            recommendedAction: 'Maintain clear vocal presence throughout third-party video sequences.'
-          });
-        }
+    // Audio Track & Acoustic Energy Analysis
+    if (metadata.hasAudio && audioResult.silenceRatio < 0.9) {
+      const activePct = Math.round((1 - audioResult.silenceRatio) * 100);
+      const isVoiceDeclaredInProfile = channelProfile?.originalVoiceNarration === 'always' || channelProfile?.originalVoiceNarration === 'mostly';
+
+      if (isVoiceDeclaredInProfile) {
+        addItem({
+          domain: 'video_audio',
+          start: 0,
+          end: dur,
+          type: 'declared_narration_acoustic_active',
+          category: 'original_contribution',
+          severity: 'info',
+          confidence: 0.70,
+          confidenceLevel: 'MEDIUM',
+          uncertaintyReason: 'AMBIGUOUS_CONTEXT',
+          provenance: 'channel_profile:declared + ffmpeg:volumedetect',
+          source: 'acoustic_profile_correlation',
+          label: 'ℹ️ Acoustic Audio Activity (Narration Declared in Profile)',
+          details: `Audio track is audible (${activePct}% acoustic activity). Channel profile specifies creator voiceover workflow ("${channelProfile?.originalVoiceNarration}").`,
+          contextualInterpretation: 'Creator commentary supports transformative originality under platform monetization standards.',
+          limitations: 'Acoustic volume confirms audio track presence, but automated speech recognition is not performed to verify spoken words or dialogue content.',
+          recommendedAction: 'Ensure creator commentary remains audible and clear throughout any external footage.'
+        });
       } else {
         addItem({
           domain: 'video_audio',
           start: 0,
-          end: Math.min(dur, Math.max(10, Math.round(dur * audioResult.voiceoverRatio))),
-          type: 'original_narration',
+          end: dur,
+          type: 'acoustic_activity_unverified',
           category: 'original_contribution',
           severity: 'info',
-          confidence: 0.88,
-          confidenceLevel: 'HIGH',
-          provenance: 'ffmpeg:volumedetect:active_ratio',
+          confidence: 0.60,
+          confidenceLevel: 'LOW',
+          uncertaintyReason: 'AMBIGUOUS_CONTEXT',
+          provenance: 'ffmpeg:silencedetect:volumedetect',
           source: 'audio_spectrum',
-          label: '🟢 Creator Voiceover Detected',
-          details: `Voice activity detected across approximately ${Math.round(audioResult.voiceoverRatio * 100)}% of the audio track.`,
-          contextualInterpretation: 'Demonstrates active narrator participation.',
-          recommendedAction: 'Continue providing original analysis alongside any external clips.'
+          label: 'ℹ️ Measurable Acoustic Audio Activity',
+          details: `Acoustic sound energy detected across ${activePct}% of the audio track. Acoustic filters cannot verify whether sound represents spoken commentary, music, sound effects, or ambient noise.`,
+          contextualInterpretation: 'Audible sound is present, but creator speech is unverified without transcript analysis.',
+          limitations: 'Silence and volume detection measure decibel energy; they do not verify speech presence or original commentary.',
+          recommendedAction: 'If incorporating third-party visuals, ensure original spoken commentary, critique, or education is included.'
         });
       }
     } else {
@@ -174,21 +176,19 @@ export class PolicyIntelligenceEngine {
         domain: 'video_audio',
         start: 0,
         end: dur,
-        type: 'low_original_contribution',
+        type: 'silent_audio_track',
         category: 'original_contribution',
-        severity: 'high',
-        confidence: 0.95,
+        severity: 'info',
+        confidence: 0.90,
         confidenceLevel: 'HIGH',
         uncertaintyReason: 'NONE',
         provenance: 'ffmpeg:silencedetect:full_track',
         source: 'audio_spectrum',
-        label: '🔴 Absence of Creator Voice Narration',
-        details: 'No vocal commentary or narrative voice identified. The track relies exclusively on background music or ambient sound.',
-        contextualInterpretation: contextResult.isEducationalOrDocumentary
-          ? 'Even for documentaries or tutorials, lack of voiceover increases scrutiny under YouTube YPP reused-content policies.'
-          : 'Videos without spoken commentary face high scrutiny under YouTube Partner Program (YPP) reused-content rules.',
-        limitations: 'Cannot detect text-only subtitles without OCR; spoken voice is the primary platform standard.',
-        recommendedAction: 'Record an original voice track explaining the context, sharing insights, or guiding the viewer.'
+        label: 'ℹ️ Silent or Near-Silent Audio Track',
+        details: 'No active audio stream or audible sound energy detected.',
+        contextualInterpretation: 'Silent videos or text-annotated tutorials are permitted, but absence of creator commentary may receive closer human review under YPP monetization guidelines if third-party footage is used.',
+        limitations: 'Audio inspection measures sound presence only; text-on-screen and subtitles are not evaluated by the audio pipeline.',
+        recommendedAction: 'If this video incorporates external footage, consider adding spoken commentary or descriptive contextual audio.'
       });
     }
 
@@ -206,59 +206,33 @@ export class PolicyIntelligenceEngine {
         confidenceLevel: 'HIGH',
         provenance: 'ffmpeg:silencedetect:gap',
         source: 'silence_detect',
-        label: '🟡 Extended Silence / Unedited Segment',
-        details: `Prolonged silence gap of ${sil.end - sil.start}s detected. May cause viewer drop-off or automated quality demotion.`,
-        contextualInterpretation: 'May indicate unedited raw footage or pause in narration.',
-        recommendedAction: 'Trim dead air or insert background ambient audio or voice narration.'
+        label: '🟡 Extended Silence / Unedited Gap',
+        details: `Prolonged silence gap of ${sil.end - sil.start}s detected (${this.formatTimestamp(sil.start)}–${this.formatTimestamp(sil.end)}).`,
+        contextualInterpretation: 'May indicate pause in narration or unedited gap in audio track.',
+        limitations: 'Measures absence of audio above -30dB; does not assess intentional dramatic pauses.',
+        recommendedAction: 'Check audio track pacing and trim unintended dead air if applicable.'
       });
     }
 
-    // Video Pacing & Slideshow Patterns
-    if (videoResult.hasSlideshowPattern) {
+    // Video Pacing & Measured Scene Transitions (Observable signal, not inauthentic claim)
+    if (videoResult.scenesCount > 0) {
       addItem({
         domain: 'video_audio',
         start: 0,
-        end: Math.min(dur, Math.round(dur * 0.7)),
-        type: 'repeated_visual_pattern',
-        category: 'inauthentic_pattern',
-        severity: 'warning',
+        end: dur,
+        type: 'scene_pacing_observation',
+        category: 'original_contribution',
+        severity: 'info',
         confidence: 0.85,
-        confidenceLevel: 'MEDIUM',
-        provenance: 'ffmpeg:fps_sample:scene_pacing',
+        confidenceLevel: 'HIGH',
+        provenance: 'ffmpeg:scene_detect:pts_intervals',
         source: 'scene_diff',
-        label: '🟡 Static Visual Slideshow Pattern',
-        details: `Average pacing of ${videoResult.averagePacingSeconds}s per cut resembles automated slideshow or static text presentation.`,
-        contextualInterpretation: 'Can trigger mass-produced / inauthentic content flags if video appears assembled with automated templates.',
-        recommendedAction: 'Vary cut pacing, introduce kinetic visuals or live-action B-roll to break static cadence.'
+        label: 'ℹ️ Measured Video Scene Pacing',
+        details: `${videoResult.scenesCount} scene(s) detected with an average interval of ${videoResult.averagePacingSeconds}s between cut transitions.`,
+        contextualInterpretation: 'Visual cut frequency reflects measured editing pacing; pacing does not independently indicate automated or inauthentic content.',
+        limitations: 'Scene detection measures visual difference thresholds between frames; semantic content and template repetition are not evaluated.',
+        recommendedAction: 'Ensure visual pacing serves the content narrative.'
       });
-    }
-
-    // Third-party material signals when voiceover is low
-    if (!audioResult.hasVoiceover || audioResult.voiceoverRatio < 0.25) {
-      const clipStart = Math.max(0, Math.round(dur * 0.2));
-      const clipEnd = Math.min(dur, Math.round(dur * 0.5));
-      if (clipEnd > clipStart + 5) {
-        addItem({
-          domain: 'video_audio',
-          start: clipStart,
-          end: clipEnd,
-          type: 'third_party_material',
-          category: 'reused_content',
-          severity: 'warning',
-          confidence: 0.82,
-          confidenceLevel: 'MEDIUM',
-          uncertaintyReason: 'AMBIGUOUS_CONTEXT',
-          provenance: 'pipeline:acoustic_visual_correlation',
-          source: 'reused_signal_engine',
-          label: '🟡 Potential Reused-Content Risk',
-          details: 'Visual sequence plays without accompanying creator transformation or commentary.',
-          contextualInterpretation: channelProfile?.thirdPartyFootageUsage === 'licensed_stock'
-            ? 'Channel profile notes licensed stock footage. Ensure license documentation is on file, though voice narration is still advised.'
-            : 'Unaccompanied footage is heavily scrutinized under YPP guidelines.',
-          limitations: 'VideoRisk does not query YouTube Content ID database; this finding reflects human review risk, not automatic copyright strikes.',
-          recommendedAction: 'Add voiceover analysis, critique, or picture-in-picture commentary explaining the clip.'
-        });
-      }
     }
 
     // ==========================================
@@ -291,7 +265,7 @@ export class PolicyIntelligenceEngine {
       // Title vs Video Content Coherence
       const clickbaitTriggers = ['how i built', 'proof', 'secret', 'millionaire', 'insane', 'cure', 'guaranteed'];
       const hasTrigger = clickbaitTriggers.some(t => videoTitle.toLowerCase().includes(t));
-      if (hasTrigger && (!audioResult.hasVoiceover || audioResult.voiceoverRatio < 0.3)) {
+      if (hasTrigger && (!metadata.hasAudio || audioResult.silenceRatio >= 0.9)) {
         addItem({
           domain: 'title',
           start: 0,
@@ -306,7 +280,7 @@ export class PolicyIntelligenceEngine {
           provenance: 'nlp:metadata_media_comparator',
           source: 'coherence_engine',
           label: '🟡 Title-to-Video Coherence Review Recommended',
-          details: 'Title suggests an in-depth personal case study or factual demonstration, but video audio lacks vocal commentary.',
+          details: 'Title suggests an in-depth personal case study or factual demonstration, but video audio track is completely silent.',
           contextualInterpretation: 'Large gap between title claims and actual delivered media can trigger Clickbait / Deceptive Practices demotion.',
           recommendedAction: 'Align title with the actual video subject matter or add an opening spoken hook.'
         });
@@ -479,7 +453,13 @@ export class PolicyIntelligenceEngine {
     const warnings = timeline.filter(t => t.severity === 'warning');
 
     // Empirical metrics
-    const originalContributionRatio = Math.min(100, Math.max(0, Math.round(input.audioResult.voiceoverRatio * 100)));
+    const originalContributionRatio = channelProfile?.originalVoiceNarration === 'always'
+      ? Math.min(100, Math.max(0, Math.round((1 - input.audioResult.silenceRatio) * 100)))
+      : channelProfile?.originalVoiceNarration === 'mostly'
+        ? Math.min(100, Math.max(0, Math.round((1 - input.audioResult.silenceRatio) * 75)))
+        : metadata.hasAudio
+          ? Math.min(100, Math.max(0, Math.round((1 - input.audioResult.silenceRatio) * 50)))
+          : 0;
     
     let reusedContentRatio = 0;
     const reusedItems = timeline.filter(t => t.category === 'reused_content' && t.severity !== 'info');
@@ -536,12 +516,12 @@ export class PolicyIntelligenceEngine {
           : timeline.some(t => t.domain === 'video_audio' && t.severity === 'warning')
             ? 'REVIEW_RECOMMENDED'
             : 'NO_MAJOR_RISK_SIGNALS_DETECTED',
-        summary: input.audioResult.hasVoiceover
-          ? `Voice narration present (${originalContributionRatio}%). ${reusedContentRatio}% potential third-party duration.`
-          : 'Absence of creator voice narration creates significant scrutiny under YPP reused-content policies.',
+        summary: metadata.hasAudio
+          ? `Acoustic audio activity measured (${Math.round((1 - input.audioResult.silenceRatio) * 100)}% active). ${input.videoResult.scenesCount} scene(s) detected (${input.videoResult.averagePacingSeconds}s pacing). Speech and third-party material are unverified by automated signal analysis.`
+          : 'No audio stream detected in video container. Visual-only analysis performed.',
         findingsCount: timeline.filter(t => t.domain === 'video_audio' && t.severity !== 'info').length,
-        confidence: 'HIGH',
-        limitations: 'Measured via audio frequency energy and frame pacing; does not query private Content ID databases.'
+        confidence: 'MEDIUM',
+        limitations: 'Silence and scene cut detection measure acoustic volume and visual transitions; VideoRisk does not verify speech content or query YouTube Content ID / copyright databases.'
       },
       title: {
         domain: 'title',
@@ -610,14 +590,14 @@ export class PolicyIntelligenceEngine {
       {
         policyName: 'YouTube Partner Program (YPP) Reused Content',
         category: 'reused_content',
-        impact: reusedContentRatio > 25 ? 'High Scrutiny' : (reusedContentRatio > 0 ? 'Moderate Concern' : 'Compliant'),
+        impact: reusedContentRatio > 25 ? 'High Scrutiny' : (channelProfile?.thirdPartyFootageUsage && channelProfile.thirdPartyFootageUsage !== 'none' ? 'Moderate Concern' : 'Compliant'),
         signalsCount: timeline.filter(t => t.category === 'reused_content' && t.severity !== 'info').length,
         description: 'Requires that external clips be incorporated into original commentary, critique, or education.'
       },
       {
         policyName: 'Original Creator Contribution & Value Add',
         category: 'original_contribution',
-        impact: (originalContributionRatio >= 60) ? 'Compliant' : (originalContributionRatio >= 25 ? 'Moderate Concern' : 'High Scrutiny'),
+        impact: (!metadata.hasAudio || input.audioResult.silenceRatio > 0.9) ? 'Moderate Concern' : 'Compliant',
         signalsCount: timeline.filter(t => t.category === 'original_contribution' && t.severity !== 'info').length,
         description: 'Evaluates presence of creator voice, unique synthesis, editing structure, and educational value.'
       },
@@ -654,15 +634,15 @@ export class PolicyIntelligenceEngine {
           score: yppScore,
           label: 'Channel & YPP Eligibility',
           explanation: yppScore > 25 
-            ? 'Segments without voice transformation create risk during human monetization review.'
-            : 'Healthy level of original creator contribution and commentary detected.'
+            ? 'Review originality, disclosures, or third-party usage declarations prior to publishing.'
+            : 'No unverified risk signals or severe policy triggers detected.'
         },
         videoMonetization: {
           status: videoMonetizationScore > 50 ? 'HIGH_RISK' : (videoMonetizationScore > 25 ? 'NEEDS_REVIEW' : 'LOW_RISK'),
           score: videoMonetizationScore,
           label: 'Individual Video Monetization',
           explanation: videoMonetizationScore > 25
-            ? 'May face limited ad delivery or Content ID claims if external clips lack licenses or commentary.'
+            ? 'Review flagged elements to ensure compliance with YouTube monetization standards.'
             : 'Favorable conditions for green monetization icon.'
         },
         advertiserFriendly: {

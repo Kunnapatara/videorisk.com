@@ -121,7 +121,9 @@ export class VideoProcessor {
         avgPacing = totalPacing / sceneDurations.length;
       }
 
-      const hasSlideshowPattern = (scenesCount > 1 && avgPacing > 15) || (scenesCount === 1 && dur >= 30);
+      // Pacing and cut transitions are measured signals, but do not independently prove a slideshow.
+      // The current pipeline does not perform slide OCR or template analysis, so slideshow classification is not asserted.
+      const hasSlideshowPattern = false;
       const repeatedFootageSegments: VideoAnalysisResult['repeatedFootageSegments'] = [];
       const templateRepetitions: VideoAnalysisResult['templateRepetitions'] = [];
 
