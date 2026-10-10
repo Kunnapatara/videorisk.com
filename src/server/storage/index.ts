@@ -28,6 +28,7 @@ export interface IUserRepository {
   deductCredits(userId: string, amount: number): Promise<boolean>;
   addCredits(userId: string, amount: number): Promise<UserAccount>;
   updatePlan(userId: string, plan: 'free' | 'creator' | 'pro' | 'agency', credits: number): Promise<UserAccount>;
+  claimFreeTrial(userId: string): Promise<{ user: UserAccount; alreadyClaimed: boolean }>;
   updateUser(userId: string, updates: Partial<UserAccount>): Promise<UserAccount | null>;
   createSession(userId: string): Promise<string>;
   getUserBySession(token: string): Promise<UserAccount | null>;
@@ -159,6 +160,7 @@ export class InMemoryStorageRepository implements IStorageRepository {
         createdAt: new Date().toISOString(),
         passwordHash,
         salt,
+        freeTrialClaimed: true,
       };
       modified = true;
     } else if (!this.state.users[defaultId].passwordHash) {
@@ -183,6 +185,7 @@ export class InMemoryStorageRepository implements IStorageRepository {
         createdAt: new Date().toISOString(),
         passwordHash,
         salt,
+        freeTrialClaimed: true,
       };
       modified = true;
     }
@@ -201,6 +204,7 @@ export class InMemoryStorageRepository implements IStorageRepository {
         createdAt: new Date().toISOString(),
         passwordHash,
         salt,
+        freeTrialClaimed: true,
       };
       modified = true;
     }
@@ -325,6 +329,7 @@ export class InMemoryStorageRepository implements IStorageRepository {
         createdAt: new Date().toISOString(),
         passwordHash,
         salt,
+        freeTrialClaimed: true,
       };
       this.state.users[id] = newUser;
       this.save();
@@ -399,6 +404,21 @@ export class InMemoryStorageRepository implements IStorageRepository {
       user.creditsRemaining = Math.max(0, user.creditsRemaining) + cleanCredits;
       this.save();
       return user;
+    },
+    claimFreeTrial: async (userId: string) => {
+      return await this.runTransaction(async (state) => {
+        const user = state.users[userId];
+        if (!user) {
+          throw new Error(`User not found: ${userId}`);
+        }
+        if (user.freeTrialClaimed) {
+          return { user, alreadyClaimed: true };
+        }
+        user.freeTrialClaimed = true;
+        user.plan = 'free';
+        user.creditsRemaining = Math.max(0, user.creditsRemaining) + 10;
+        return { user, alreadyClaimed: false };
+      });
     },
     updateUser: async (userId: string, updates: Partial<UserAccount>) => {
       const user = this.state.users[userId];

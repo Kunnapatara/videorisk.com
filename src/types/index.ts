@@ -278,6 +278,7 @@ export interface UserAccount {
   subscriptionStatus?: string;
   passwordHash?: string;
   salt?: string;
+  freeTrialClaimed?: boolean;
 }
 
 export interface AuthSessionRecord {

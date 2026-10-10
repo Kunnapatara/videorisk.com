@@ -360,10 +360,17 @@ apiRouter.post('/user/plan', async (req: Request, res: Response) => {
 
     const { plan } = req.body;
     
-    // Free trial can be claimed directly once
+    // Free trial can only be claimed once across the account lifecycle
     if (plan === 'free') {
-      const updated = await storage.users.updatePlan(user.id, 'free', 10);
-      return res.json(sanitizeUser(updated));
+      const result = await storage.users.claimFreeTrial(user.id);
+      if (result.alreadyClaimed) {
+        return res.status(409).json({
+          error: 'Free trial has already been claimed for this account.',
+          alreadyClaimed: true,
+          user: sanitizeUser(result.user),
+        });
+      }
+      return res.json(sanitizeUser(result.user));
     }
 
     // Paid tiers (creator, pro, agency, audit_once) MUST go through checkout session

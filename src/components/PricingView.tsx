@@ -74,6 +74,12 @@ export const PricingView: React.FC<PricingViewProps> = ({ user, onPlanUpdated, o
             type: 'success',
             text: 'Free trial plan active with 10 evaluation minutes.'
           });
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setCheckoutMessage({
+            type: 'error',
+            text: errData.error || 'Free trial has already been claimed for this account.'
+          });
         }
         return;
       }
