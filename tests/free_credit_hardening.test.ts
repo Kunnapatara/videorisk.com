@@ -214,6 +214,128 @@ export async function runFreeCreditHardeningTests() {
       assert(paidRes.status === 400, `Direct upgrade to ${paidTier} without checkout rejected with 400`);
     }
 
+    // ---------------------------------------------------------------------------------
+    // 8. LEGACY STORAGE MIGRATION (fail-closed missing & non-boolean freeTrialClaimed)
+    // ---------------------------------------------------------------------------------
+    console.log('\n[8. Legacy Storage Migration]');
+    const legacyFixturePath = path.resolve(os.tmpdir(), `videorisk_legacy_test_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.json`);
+    try {
+      const legacyFixtureData = {
+        users: {
+          usr_legacy_1: {
+            id: 'usr_legacy_1',
+            email: 'legacy1@videorisk.com',
+            plan: 'free',
+            creditsRemaining: 3,
+            creditsUsedTotal: 7,
+            totalScansCount: 2,
+            createdAt: '2026-01-01T00:00:00.000Z',
+            passwordHash: 'hash1',
+            salt: 'salt1'
+            // freeTrialClaimed is omitted (undefined)
+          },
+          usr_legacy_invalid_flag: {
+            id: 'usr_legacy_invalid_flag',
+            email: 'legacy_invalid@videorisk.com',
+            plan: 'free',
+            creditsRemaining: 5,
+            creditsUsedTotal: 5,
+            totalScansCount: 1,
+            createdAt: '2026-01-02T00:00:00.000Z',
+            passwordHash: 'hash2',
+            salt: 'salt2',
+            freeTrialClaimed: 'invalid_string' as any // non-boolean value
+          },
+          usr_explicit_false: {
+            id: 'usr_explicit_false',
+            email: 'explicit_false@videorisk.com',
+            plan: 'free',
+            creditsRemaining: 0,
+            creditsUsedTotal: 0,
+            totalScansCount: 0,
+            createdAt: '2026-01-03T00:00:00.000Z',
+            passwordHash: 'hash3',
+            salt: 'salt3',
+            freeTrialClaimed: false // explicit boolean false must NOT be overwritten
+          },
+          usr_explicit_true: {
+            id: 'usr_explicit_true',
+            email: 'explicit_true@videorisk.com',
+            plan: 'creator',
+            creditsRemaining: 30,
+            creditsUsedTotal: 0,
+            totalScansCount: 0,
+            createdAt: '2026-01-04T00:00:00.000Z',
+            passwordHash: 'hash4',
+            salt: 'salt4',
+            freeTrialClaimed: true // explicit boolean true must remain true
+          }
+        },
+        sessions: {},
+        uploads: {},
+        channelProfiles: {},
+        scans: {},
+        reports: {},
+        evidence: {},
+        comparisons: {},
+        usage: [],
+        webhookEvents: {},
+        subscriptions: {}
+      };
+
+      fs.writeFileSync(legacyFixturePath, JSON.stringify(legacyFixtureData, null, 2), 'utf-8');
+
+      // Instantiate storage loading from legacy fixture
+      const migratedStorage = new InMemoryStorageRepository(legacyFixturePath);
+
+      // Verify legacy user with missing flag
+      const user1 = await migratedStorage.users.getUser('usr_legacy_1');
+      assert(user1 !== null, 'Legacy user 1 successfully loaded');
+      assert(user1?.freeTrialClaimed === true, '1. Legacy user with missing flag migrated to freeTrialClaimed: true');
+      assert(user1?.creditsRemaining === 3, '2. Migration does not change existing credit balance (remains 3)');
+      assert(user1?.plan === 'free', 'Migration does not change existing plan');
+      assert(user1?.email === 'legacy1@videorisk.com', 'Migration does not change email');
+
+      // Verify calling claimFreeTrial on migrated legacy user returns alreadyClaimed: true
+      const legacyClaimAttempt = await migratedStorage.users.claimFreeTrial('usr_legacy_1');
+      assert(legacyClaimAttempt.alreadyClaimed === true, '3. Calling claimFreeTrial(userId) on migrated user returns alreadyClaimed: true');
+      assert(legacyClaimAttempt.user.creditsRemaining === 3, '4. Credit balance remains unchanged at 3 after claim attempt');
+
+      // Verify invalid non-boolean value migrated to true
+      const invalidUser = await migratedStorage.users.getUser('usr_legacy_invalid_flag');
+      assert(invalidUser?.freeTrialClaimed === true, 'Invalid non-boolean freeTrialClaimed migrated to boolean true');
+      assert(invalidUser?.creditsRemaining === 5, 'Invalid flag user credits remain unchanged at 5');
+
+      // Verify explicit false is preserved
+      const explicitFalseUser = await migratedStorage.users.getUser('usr_explicit_false');
+      assert(explicitFalseUser?.freeTrialClaimed === false, 'Explicit boolean false remains false during migration');
+
+      // Verify explicit true is preserved
+      const explicitTrueUser = await migratedStorage.users.getUser('usr_explicit_true');
+      assert(explicitTrueUser?.freeTrialClaimed === true, 'Explicit boolean true remains true during migration');
+
+      // 5. Verify the migrated flag is written to disk immediately
+      const diskContents = JSON.parse(fs.readFileSync(legacyFixturePath, 'utf-8'));
+      assert(diskContents.users.usr_legacy_1.freeTrialClaimed === true, '5. Migrated flag for usr_legacy_1 is written to disk');
+      assert(diskContents.users.usr_legacy_invalid_flag.freeTrialClaimed === true, 'Migrated flag for usr_legacy_invalid_flag is written to disk');
+      assert(diskContents.users.usr_explicit_false.freeTrialClaimed === false, 'Explicit false is preserved on disk');
+
+      // 6. Verify second storage instance using the same file preserves migrated flag and balance
+      const reloadedLegacyStorage = new InMemoryStorageRepository(legacyFixturePath);
+      const reloadedUser1 = await reloadedLegacyStorage.users.getUser('usr_legacy_1');
+      assert(reloadedUser1?.freeTrialClaimed === true, '6. Second storage instance preserves migrated flag as true');
+      assert(reloadedUser1?.creditsRemaining === 3, 'Second storage instance preserves balance at 3');
+      const secondClaimOnReloaded = await reloadedLegacyStorage.users.claimFreeTrial('usr_legacy_1');
+      assert(secondClaimOnReloaded.alreadyClaimed === true, 'Claim on reloaded second storage instance rejected as alreadyClaimed');
+      assert(secondClaimOnReloaded.user.creditsRemaining === 3, 'Balance still remains 3 on reloaded instance');
+    } finally {
+      if (fs.existsSync(legacyFixturePath)) {
+        try {
+          fs.unlinkSync(legacyFixturePath);
+        } catch {}
+      }
+    }
+
     console.log('\n======================================================');
     console.log(`TEST SUITE 5 COMPLETE: ${passed}/${total} assertions passed!`);
     console.log('======================================================\n');

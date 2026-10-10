@@ -257,6 +257,22 @@ export class InMemoryStorageRepository implements IStorageRepository {
       webhookEvents: parsed.webhookEvents || {},
       subscriptions: parsed.subscriptions || {},
     };
+
+    let migratedLegacyFreeTrialFlags = false;
+
+    for (const user of Object.values(this.state.users)) {
+      if (typeof user.freeTrialClaimed !== 'boolean') {
+        // Fail closed: legacy entitlement history cannot be proven.
+        // Do not grant another trial to an existing account.
+        user.freeTrialClaimed = true;
+        migratedLegacyFreeTrialFlags = true;
+      }
+    }
+
+    if (migratedLegacyFreeTrialFlags) {
+      // Persist the migration immediately so it survives restarts.
+      this.saveAtomic();
+    }
   }
 
   public save() {
