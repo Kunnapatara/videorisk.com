@@ -211,26 +211,33 @@ export class InMemoryStorageRepository implements IStorageRepository {
   }
 
   private load() {
+    if (!fs.existsSync(this.dataFile)) {
+      return;
+    }
+
     try {
-      if (fs.existsSync(this.dataFile)) {
-        const raw = fs.readFileSync(this.dataFile, 'utf-8');
-        const parsed = JSON.parse(raw);
-        this.state = {
-          users: parsed.users || {},
-          sessions: parsed.sessions || {},
-          uploads: parsed.uploads || {},
-          channelProfiles: parsed.channelProfiles || {},
-          scans: parsed.scans || {},
-          reports: parsed.reports || {},
-          evidence: parsed.evidence || {},
-          comparisons: parsed.comparisons || {},
-          usage: parsed.usage || [],
-          webhookEvents: parsed.webhookEvents || {},
-          subscriptions: parsed.subscriptions || {},
-        };
+      const raw = fs.readFileSync(this.dataFile, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('Storage file must contain a JSON object.');
       }
+
+      this.state = {
+        users: parsed.users || {},
+        sessions: parsed.sessions || {},
+        uploads: parsed.uploads || {},
+        channelProfiles: parsed.channelProfiles || {},
+        scans: parsed.scans || {},
+        reports: parsed.reports || {},
+        evidence: parsed.evidence || {},
+        comparisons: parsed.comparisons || {},
+        usage: parsed.usage || [],
+        webhookEvents: parsed.webhookEvents || {},
+        subscriptions: parsed.subscriptions || {},
+      };
     } catch (err) {
-      console.warn('[Storage] Failed to read store.json, using fresh in-memory storage:', err);
+      console.error('[Storage] Failed to load persistent data; refusing to start with empty state.', err);
+      throw new Error(`Unable to load storage file at ${this.dataFile}; refusing to start with potentially destructive empty state.`, { cause: err });
     }
   }
 
