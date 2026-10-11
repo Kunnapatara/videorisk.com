@@ -189,8 +189,17 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 Original Voice
               </span>
               <span className="text-xl font-black text-stone-900 font-mono">
-                {typeof report.originalContributionRatio === 'number' ? `${report.originalContributionRatio}%` : 'Not Assessed'}
+                {typeof report.originalContributionRatio === 'number'
+                  ? `${report.originalContributionRatio}%`
+                  : report.originalContributionStatus === 'INSUFFICIENT_EVIDENCE'
+                  ? 'Uncertain'
+                  : 'Not Assessed'}
               </span>
+              {typeof report.originalContributionRatio !== 'number' && (
+                <span className="block text-[9px] text-stone-500 font-medium">
+                  {report.originalContributionStatus === 'INSUFFICIENT_EVIDENCE' ? 'Speech unverified' : 'Single video scan'}
+                </span>
+              )}
             </div>
             <div>
               <span className="block text-[10px] uppercase tracking-wider text-stone-500 font-bold">
