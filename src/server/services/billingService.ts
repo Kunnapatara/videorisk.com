@@ -14,7 +14,9 @@ export interface CheckoutSessionOptions {
 export class BillingService {
   private stripe: Stripe | null = null;
   private isConfigured: boolean = false;
-  private isProduction: boolean = process.env.NODE_ENV === 'production';
+  private get isProduction(): boolean {
+    return process.env.NODE_ENV === 'production';
+  }
 
   constructor() {
     const apiKey = process.env.STRIPE_SECRET_KEY;

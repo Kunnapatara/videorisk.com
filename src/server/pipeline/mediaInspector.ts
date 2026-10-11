@@ -63,28 +63,37 @@ export class MediaInspector {
         throw new MediaInspectionError('Could not determine valid duration for media container.');
       }
 
-      const width = videoStream?.width || 1920;
-      const height = videoStream?.height || 1080;
-      
-      let fps = 30;
-      if (videoStream?.r_frame_rate) {
-        const parts = videoStream.r_frame_rate.split('/');
-        if (parts.length === 2 && parseFloat(parts[1]) > 0) {
-          fps = Math.round(parseFloat(parts[0]) / parseFloat(parts[1]));
-        }
-      }
+      let width = 0;
+      let height = 0;
+      let fps = 0;
+      let resolutionLabel = 'Audio Only (No Video Stream)';
 
-      let resolutionLabel = '1080p Full HD';
-      if (width >= 3840 || height >= 2160) {
-        resolutionLabel = '4K Ultra HD';
-      } else if (width >= 2560 || height >= 1440) {
-        resolutionLabel = '1440p Quad HD';
-      } else if (width >= 1920 || height >= 1080) {
-        resolutionLabel = '1080p Full HD';
-      } else if (width >= 1280 || height >= 720) {
-        resolutionLabel = '720p HD';
-      } else {
-        resolutionLabel = `${width}x${height}`;
+      if (videoStream) {
+        width = videoStream.width || 0;
+        height = videoStream.height || 0;
+        if (width === 0 || height === 0) {
+          throw new MediaInspectionError('Video stream present in container but dimensions are missing or invalid.');
+        }
+
+        if (videoStream.r_frame_rate) {
+          const parts = videoStream.r_frame_rate.split('/');
+          if (parts.length === 2 && parseFloat(parts[1]) > 0) {
+            fps = Math.round(parseFloat(parts[0]) / parseFloat(parts[1]));
+          }
+        }
+        if (fps <= 0) fps = 30;
+
+        if (width >= 3840 || height >= 2160) {
+          resolutionLabel = '4K Ultra HD';
+        } else if (width >= 2560 || height >= 1440) {
+          resolutionLabel = '1440p Quad HD';
+        } else if (width >= 1920 || height >= 1080) {
+          resolutionLabel = '1080p Full HD';
+        } else if (width >= 1280 || height >= 720) {
+          resolutionLabel = '720p HD';
+        } else {
+          resolutionLabel = `${width}x${height}`;
+        }
       }
 
       const hasAudio = !!audioStream;
@@ -97,7 +106,7 @@ export class MediaInspector {
         width,
         height,
         resolutionLabel,
-        fps: fps || 30,
+        fps,
         hasAudio,
         audioCodec: audioStream?.codec_name,
         videoCodec: videoStream?.codec_name,
@@ -106,6 +115,9 @@ export class MediaInspector {
     } catch (err: any) {
       if (err instanceof MediaInspectionError) {
         throw err;
+      }
+      if (err.killed || err.signal === 'SIGTERM') {
+        throw new MediaInspectionError('Media inspection timed out while probing streams.');
       }
       throw new MediaInspectionError(
         `Failed to decode media file: ${err?.message || 'Unsupported or corrupted video format.'}`

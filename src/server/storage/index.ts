@@ -10,8 +10,28 @@ import {
   SubscriptionRecord,
   WebhookEventRecord,
   AuthSessionRecord,
-  ChannelContextProfile
+  ChannelContextProfile,
+  PasswordResetRecord,
+  JobQueueRecord,
+  OperationalMetrics
 } from '../../types';
+
+export interface IPasswordResetRepository {
+  createResetToken(userId: string, tokenHash: string, expiresAt: string): Promise<void>;
+  getResetToken(tokenHash: string): Promise<PasswordResetRecord | null>;
+  markTokenUsed(tokenHash: string): Promise<boolean>;
+  revokeAllUserSessions(userId: string): Promise<void>;
+  checkRateLimit(key: string, action: string, limit: number, windowSeconds: number): Promise<boolean>;
+}
+
+export interface IJobQueueRepository {
+  enqueueJob(scanId: string, runAt?: string): Promise<JobQueueRecord>;
+  claimNextJob(workerId: string, leaseDurationMs?: number): Promise<JobQueueRecord | null>;
+  completeJob(id: string): Promise<void>;
+  failJob(id: string, error: string, retryable: boolean, backoffMs?: number): Promise<void>;
+  recoverStaleJobs(leaseTimeoutMs?: number): Promise<number>;
+  getJobByScanId(scanId: string): Promise<JobQueueRecord | null>;
+}
 
 export interface IChannelProfileRepository {
   getProfile(userId: string): Promise<ChannelContextProfile | null>;
@@ -46,6 +66,7 @@ export interface IScanRepository {
   getComparison(revisedScanId: string): Promise<ReScanComparison | null>;
   deductScanCredits(scanId: string, userId: string, amount: number): Promise<boolean>;
   refundScanCredits(scanId: string, hintAmount?: number): Promise<{ refunded: boolean; amount: number }>;
+  deleteScan(id: string): Promise<boolean>;
 }
 
 export interface IEvidenceRepository {
@@ -92,19 +113,26 @@ export interface IStorageRepository {
   evidence: IEvidenceRepository;
   usage: IUsageRepository;
   billing: IBillingRepository;
+  passwordReset: IPasswordResetRepository;
+  queue: IJobQueueRepository;
+  getOperationalMetrics?: () => Promise<OperationalMetrics>;
+  close?: () => Promise<void>;
   runTransaction<T>(operation: (state: any) => Promise<T> | T): Promise<T>;
 }
 
-// In-Memory Storage with pure JSON file persistence (Zero SQLite, Zero native binary dependency)
+// In-Memory Storage with pure JSON file persistence (for fast test isolation and fallback)
 export class InMemoryStorageRepository implements IStorageRepository {
   private dataFile: string;
   private writeLock: Promise<void> = Promise.resolve();
   private state: {
     users: Record<string, UserAccount>;
     sessions: Record<string, AuthSessionRecord>;
+    passwordResets: Record<string, PasswordResetRecord>;
+    rateLimits: Array<{ key: string; action: string; timestamp: number }>;
     uploads: Record<string, UploadRecord>;
     channelProfiles: Record<string, ChannelContextProfile>;
     scans: Record<string, ScanJob>;
+    jobQueue: Record<string, JobQueueRecord>;
     reports: Record<string, RiskReport>;
     evidence: Record<string, EvidenceItem[]>;
     comparisons: Record<string, ReScanComparison>;
@@ -127,9 +155,12 @@ export class InMemoryStorageRepository implements IStorageRepository {
     this.state = {
       users: {},
       sessions: {},
+      passwordResets: {},
+      rateLimits: [],
       uploads: {},
       channelProfiles: {},
       scans: {},
+      jobQueue: {},
       reports: {},
       evidence: {},
       comparisons: {},
@@ -249,9 +280,12 @@ export class InMemoryStorageRepository implements IStorageRepository {
     this.state = {
       users: parsed.users || {},
       sessions: parsed.sessions || {},
+      passwordResets: parsed.passwordResets || {},
+      rateLimits: parsed.rateLimits || [],
       uploads: parsed.uploads || {},
       channelProfiles: parsed.channelProfiles || {},
       scans: parsed.scans || {},
+      jobQueue: parsed.jobQueue || {},
       reports: parsed.reports || {},
       evidence: parsed.evidence || {},
       comparisons: parsed.comparisons || {},
@@ -549,6 +583,17 @@ export class InMemoryStorageRepository implements IStorageRepository {
 
         return { refunded: true, amount: amountToRefund };
       });
+    },
+    deleteScan: async (id: string): Promise<boolean> => {
+      return await this.runTransaction(async (state) => {
+        if (!state.scans[id]) return false;
+        delete state.scans[id];
+        delete state.reports[id];
+        delete state.evidence[id];
+        delete state.comparisons[id];
+        delete state.jobQueue[id];
+        return true;
+      });
     }
   };
 
@@ -746,10 +791,235 @@ export class InMemoryStorageRepository implements IStorageRepository {
       return false;
     }
   };
+
+  public passwordReset: IPasswordResetRepository = {
+    createResetToken: async (userId: string, tokenHash: string, expiresAt: string): Promise<void> => {
+      this.state.passwordResets[tokenHash] = {
+        tokenHash,
+        userId,
+        expiresAt,
+        usedAt: null,
+        createdAt: new Date().toISOString()
+      };
+      this.save();
+    },
+
+    getResetToken: async (tokenHash: string): Promise<PasswordResetRecord | null> => {
+      return this.state.passwordResets[tokenHash] || null;
+    },
+
+    markTokenUsed: async (tokenHash: string): Promise<boolean> => {
+      const rec = this.state.passwordResets[tokenHash];
+      if (rec && !rec.usedAt) {
+        rec.usedAt = new Date().toISOString();
+        this.save();
+        return true;
+      }
+      return false;
+    },
+
+    revokeAllUserSessions: async (userId: string): Promise<void> => {
+      for (const [token, sess] of Object.entries(this.state.sessions)) {
+        if (sess.userId === userId) {
+          delete this.state.sessions[token];
+        }
+      }
+      this.save();
+    },
+
+    checkRateLimit: async (key: string, action: string, limit: number, windowSeconds: number): Promise<boolean> => {
+      const now = Math.floor(Date.now() / 1000);
+      const windowStart = now - windowSeconds;
+      this.state.rateLimits = this.state.rateLimits.filter(e => e.timestamp >= windowStart);
+
+      const recent = this.state.rateLimits.filter(e => e.key === key && e.action === action);
+      if (recent.length >= limit) {
+        return false;
+      }
+
+      this.state.rateLimits.push({ key, action, timestamp: now });
+      return true;
+    }
+  };
+
+  public queue: IJobQueueRepository = {
+    enqueueJob: async (scanId: string, runAt?: string): Promise<JobQueueRecord> => {
+      const now = new Date().toISOString();
+      const existing = this.state.jobQueue[scanId];
+      if (existing) {
+        existing.status = 'QUEUED';
+        existing.runAt = runAt || now;
+        existing.updatedAt = now;
+        this.save();
+        return existing;
+      }
+
+      const rec: JobQueueRecord = {
+        id: `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        scanId,
+        status: 'QUEUED',
+        attempts: 0,
+        maxAttempts: 3,
+        runAt: runAt || now,
+        createdAt: now,
+        updatedAt: now
+      };
+      this.state.jobQueue[scanId] = rec;
+      this.save();
+      return rec;
+    },
+
+    claimNextJob: async (workerId: string, leaseDurationMs: number = 60000): Promise<JobQueueRecord | null> => {
+      const now = new Date();
+      const nowIso = now.toISOString();
+
+      const candidate = Object.values(this.state.jobQueue).find(
+        j => (j.status === 'QUEUED' || j.status === 'RETRYABLE') && j.runAt <= nowIso
+      );
+
+      if (!candidate) return null;
+
+      const lockedUntil = new Date(now.getTime() + leaseDurationMs).toISOString();
+      candidate.status = 'RUNNING';
+      candidate.attempts += 1;
+      candidate.lockedAt = lockedUntil;
+      candidate.lockedBy = workerId;
+      candidate.updatedAt = nowIso;
+      this.save();
+      return candidate;
+    },
+
+    completeJob: async (id: string): Promise<void> => {
+      const job = Object.values(this.state.jobQueue).find(j => j.id === id);
+      if (job) {
+        job.status = 'COMPLETED';
+        job.lockedAt = null;
+        job.lockedBy = null;
+        job.updatedAt = new Date().toISOString();
+        this.save();
+      }
+    },
+
+    failJob: async (id: string, error: string, retryable: boolean, backoffMs: number = 5000): Promise<void> => {
+      const job = Object.values(this.state.jobQueue).find(j => j.id === id);
+      if (job) {
+        const now = new Date();
+        job.status = retryable ? 'RETRYABLE' : 'FAILED';
+        job.runAt = new Date(now.getTime() + backoffMs).toISOString();
+        job.lockedAt = null;
+        job.lockedBy = null;
+        job.lastError = error;
+        job.updatedAt = now.toISOString();
+        this.save();
+      }
+    },
+
+    recoverStaleJobs: async (_leaseTimeoutMs: number = 60000): Promise<number> => {
+      const now = new Date().toISOString();
+      let recovered = 0;
+      for (const job of Object.values(this.state.jobQueue)) {
+        if (job.status === 'RUNNING' && job.lockedAt && job.lockedAt <= now) {
+          job.status = 'RETRYABLE';
+          job.lockedAt = null;
+          job.lockedBy = null;
+          job.updatedAt = now;
+          recovered++;
+        }
+      }
+      if (recovered > 0) this.save();
+      return recovered;
+    },
+
+    getJobByScanId: async (scanId: string): Promise<JobQueueRecord | null> => {
+      return this.state.jobQueue[scanId] || null;
+    }
+  };
+
+  public async getOperationalMetrics(): Promise<OperationalMetrics> {
+    const totalScans = Object.keys(this.state.scans).length;
+    const completedScans = Object.values(this.state.scans).filter(s => s.status === 'COMPLETED').length;
+    const failedScans = Object.values(this.state.scans).filter(s => s.status === 'FAILED').length;
+
+    const reports = Object.values(this.state.reports);
+    let totalProcSec = 0;
+    let inspMs = 0;
+    let audioMs = 0;
+    let videoMs = 0;
+    let policyMs = 0;
+    let reportCount = 0;
+
+    for (const r of reports) {
+      if (r.benchmarkMetrics) {
+        totalProcSec += r.benchmarkMetrics.totalProcessingSeconds || 0;
+        inspMs += r.benchmarkMetrics.inspectionMs || 0;
+        audioMs += r.benchmarkMetrics.audioProcessingMs || 0;
+        videoMs += r.benchmarkMetrics.videoAnalysisMs || 0;
+        policyMs += r.benchmarkMetrics.policyReasoningMs || 0;
+        reportCount++;
+      }
+    }
+
+    const totalMin = this.state.usage.reduce((sum, u) => sum + u.durationMinutes, 0);
+
+    return {
+      totalScans,
+      completedScans,
+      failedScans,
+      averageProcessingSeconds: reportCount > 0 ? parseFloat((totalProcSec / reportCount).toFixed(2)) : 0,
+      totalDurationSecondsScanned: Math.round(totalMin * 60),
+      estimatedComputeCostUsd: parseFloat((totalMin * 0.005).toFixed(4)),
+      estimatedStorageCostUsd: parseFloat((reportCount * 0.001).toFixed(4)),
+      measuredStageAveragesMs: {
+        inspection: reportCount > 0 ? Math.round(inspMs / reportCount) : 0,
+        audio: reportCount > 0 ? Math.round(audioMs / reportCount) : 0,
+        video: reportCount > 0 ? Math.round(videoMs / reportCount) : 0,
+        policy: reportCount > 0 ? Math.round(policyMs / reportCount) : 0
+      }
+    };
+  }
+
+  public async close(): Promise<void> {
+    // In-memory does not require socket cleanup
+  }
 }
+
+export { SqliteStorageRepository, migrateJsonToSqlite } from './sqliteStorage';
+import { SqliteStorageRepository, migrateJsonToSqlite } from './sqliteStorage';
 
 export function createStorage(customPath?: string): IStorageRepository {
-  return new InMemoryStorageRepository(customPath);
+  if (process.env.STORAGE_ENGINE === 'memory') {
+    return new InMemoryStorageRepository(customPath);
+  }
+  return new SqliteStorageRepository(customPath);
 }
 
-export const storage = new InMemoryStorageRepository();
+// Default system-of-record storage instance:
+// Uses durable SQLite in production, with seamless migration from legacy store.json if present.
+function initializeDefaultStorage(): IStorageRepository {
+  if (process.env.STORAGE_ENGINE === 'memory') {
+    return new InMemoryStorageRepository();
+  }
+
+  const dbPath = process.env.DATABASE_PATH || path.resolve(process.cwd(), 'data', 'videorisk.db');
+  const sqliteRepo = new SqliteStorageRepository(dbPath);
+
+  // Auto-migrate legacy JSON storage if present and SQLite has 0 users
+  const legacyJsonPath = process.env.STORE_PATH || path.resolve(process.cwd(), 'data', 'store.json');
+  if (fs.existsSync(legacyJsonPath)) {
+    try {
+      const userCount = (sqliteRepo.db.prepare('SELECT COUNT(*) as c FROM users').get() as any).c;
+      if (userCount <= 3) { // only seed accounts or empty
+        const migrationResult = migrateJsonToSqlite(legacyJsonPath, sqliteRepo);
+        if (migrationResult.migratedUsers > 0 || migrationResult.migratedScans > 0) {
+          console.log(`[Storage] Safely migrated legacy JSON store to SQLite: ${migrationResult.migratedUsers} users, ${migrationResult.migratedScans} scans, backup created at ${migrationResult.backupPath}`);
+        }
+      }
+    } catch (migErr) {
+      console.warn('[Storage] Legacy migration check skipped:', migErr);
+    }
+  }
+
+  return sqliteRepo;
+}
+
+export const storage = initializeDefaultStorage();

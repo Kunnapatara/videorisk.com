@@ -328,6 +328,44 @@ export interface WebhookEventRecord {
   planGranted?: string;
 }
 
+export interface PasswordResetRecord {
+  tokenHash: string;
+  userId: string;
+  expiresAt: string;
+  usedAt?: string | null;
+  createdAt: string;
+}
+
+export interface JobQueueRecord {
+  id: string;
+  scanId: string;
+  status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'RETRYABLE';
+  attempts: number;
+  maxAttempts: number;
+  runAt: string;
+  lockedAt?: string | null;
+  lockedBy?: string | null;
+  lastError?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OperationalMetrics {
+  totalScans: number;
+  completedScans: number;
+  failedScans: number;
+  averageProcessingSeconds: number;
+  totalDurationSecondsScanned: number;
+  estimatedComputeCostUsd: number;
+  estimatedStorageCostUsd: number;
+  measuredStageAveragesMs: {
+    inspection: number;
+    audio: number;
+    video: number;
+    policy: number;
+  };
+}
+
 export interface PlanDetails {
   id: string;
   name: string;

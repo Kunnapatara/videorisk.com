@@ -41,6 +41,19 @@ export class VideoProcessor {
       throw new VideoProcessingError('Video file is empty (0 bytes).');
     }
 
+    // Audio-only input: No video stream to sample
+    if (!metadata.videoCodec || metadata.width === 0) {
+      return {
+        scenesCount: 0,
+        framesSampled: 0,
+        hasSlideshowPattern: false,
+        repeatedFootageSegments: [],
+        templateRepetitions: [],
+        averagePacingSeconds: 0,
+        tempFramesDir: ''
+      };
+    }
+
     const dur = Math.max(0.1, metadata.durationSeconds || 0.1);
     const uniqueJobSubdir = `job_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     const tempDir = path.resolve(process.cwd(), 'uploads', 'frames', uniqueJobSubdir);

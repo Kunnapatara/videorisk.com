@@ -29,12 +29,19 @@ export class AudioProcessor {
    * Processes audio stream using ffmpeg silencedetect and volume statistics
    * Uses execFile directly without shell
    */
-  public async analyzeAudio(videoPath: string, metadata: MediaMetadata): Promise<AudioAnalysisResult> {
+  public async analyzeAudio(videoPath: string, metadataOrDuration: MediaMetadata | number): Promise<AudioAnalysisResult> {
     if (!fs.existsSync(videoPath)) {
       throw new AudioProcessingError(`Audio/video file not found at ${videoPath}`);
     }
 
-    if (!metadata.hasAudio) {
+    const durationSeconds = typeof metadataOrDuration === 'number'
+      ? metadataOrDuration
+      : metadataOrDuration.durationSeconds;
+    const hasAudio = typeof metadataOrDuration === 'number'
+      ? true
+      : metadataOrDuration.hasAudio;
+
+    if (!hasAudio) {
       return {
         hasVoiceover: false,
         voiceoverRatio: 0,
@@ -43,7 +50,7 @@ export class AudioProcessor {
         meanVolumeDb: undefined,
         isAudible: false,
         advertiserSpeechFlags: [],
-        segments: [{ start: 0, end: metadata.durationSeconds, type: 'silence' }],
+        segments: [{ start: 0, end: durationSeconds, type: 'silence' }],
         transcriptSummary: 'No audio stream detected in container.'
       };
     }
@@ -66,7 +73,7 @@ export class AudioProcessor {
         throw new AudioProcessingError(`FFmpeg audio analysis failed: ${procErr?.message || procErr}`);
       }
 
-      const dur = metadata.durationSeconds;
+      const dur = durationSeconds;
       if (!Number.isFinite(dur) || dur <= 0) {
         throw new AudioProcessingError(`FFmpeg audio analysis failed: invalid or non-finite duration (${dur})`);
       }

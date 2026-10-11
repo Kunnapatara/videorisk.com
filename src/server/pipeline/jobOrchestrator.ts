@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { storage } from '../storage';
 import { mediaInspector, MediaInspectionError } from './mediaInspector';
 import { proxyGenerator } from './proxyGenerator';
@@ -6,41 +7,134 @@ import { videoProcessor, VideoProcessingError } from './videoProcessor';
 import { thumbnailInspector } from './thumbnailInspector';
 import { policyIntelligenceEngine } from '../intelligence/policyIntelligence';
 import { creditService } from '../services/creditService';
-import { ScanJob, ScanStage, JobStatus, ThumbnailMetadata } from '../../types';
+import { ScanJob, ScanStage, JobStatus, ThumbnailMetadata, JobQueueRecord } from '../../types';
 
 export class JobOrchestrator {
   private activeJobs = new Set<string>();
+  private workerId = `worker_${process.pid}_${crypto.randomBytes(4).toString('hex')}`;
+  private isWorkerRunning = false;
+  private pollTimer: NodeJS.Timeout | null = null;
+  private staleRecoveryTimer: NodeJS.Timeout | null = null;
+  private maxConcurrentJobs = 2;
+  private currentRunningCount = 0;
+
+  constructor() {
+    // Automatically start worker loop
+    this.startWorker();
+  }
+
+  public startWorker(): void {
+    if (this.isWorkerRunning) return;
+    this.isWorkerRunning = true;
+
+    // Periodic job queue polling
+    this.pollTimer = setInterval(() => {
+      this.pollQueue();
+    }, 500);
+
+    // Periodic stale job recovery (every 15s)
+    this.staleRecoveryTimer = setInterval(() => {
+      storage.queue.recoverStaleJobs(60000).catch(err => {
+        console.warn('[JobOrchestrator] Error recovering stale jobs:', err);
+      });
+    }, 15000);
+
+    // Initial check for recovery from server restart
+    storage.queue.recoverStaleJobs(60000).catch(() => {});
+  }
+
+  public stopWorker(): void {
+    this.isWorkerRunning = false;
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+    if (this.staleRecoveryTimer) {
+      clearInterval(this.staleRecoveryTimer);
+      this.staleRecoveryTimer = null;
+    }
+  }
 
   /**
-   * Starts asynchronous job execution in the background
+   * Enqueues scan job durably and kicks worker
    */
   public startJob(scanId: string): void {
-    if (this.activeJobs.has(scanId)) return;
-    this.activeJobs.add(scanId);
-
-    // Fire and forget, does NOT block HTTP request
-    this.processJob(scanId).catch(async (err) => {
-      console.error(`[JobOrchestrator] Job ${scanId} failed:`, err);
-
-      // Deterministic, idempotent refund if credits were deducted
-      try {
-        const refundResult = await storage.scans.refundScanCredits(scanId);
-        if (refundResult.refunded) {
-          console.log(`[JobOrchestrator] Refunded ${refundResult.amount} credits for failed job ${scanId}`);
-        }
-      } catch (refundErr) {
-        console.error(`[JobOrchestrator] Failed to execute credit refund for job ${scanId}:`, refundErr);
-      }
-
-      await storage.scans.updateScan(scanId, {
-        status: 'FAILED',
-        error: (err instanceof MediaInspectionError || err instanceof VideoProcessingError || err instanceof AudioProcessingError) 
-          ? err.message 
-          : 'We couldn’t complete this scan. Your video was not published or shared. Credits have been refunded. Please try again.'
-      });
-    }).finally(() => {
-      this.activeJobs.delete(scanId);
+    storage.queue.enqueueJob(scanId).then(() => {
+      this.triggerPoll();
+    }).catch(err => {
+      console.error(`[JobOrchestrator] Failed to enqueue job ${scanId}:`, err);
     });
+  }
+
+  public triggerPoll(): void {
+    setImmediate(() => this.pollQueue());
+  }
+
+  private async pollQueue(): Promise<void> {
+    if (!this.isWorkerRunning || this.currentRunningCount >= this.maxConcurrentJobs) {
+      return;
+    }
+
+    try {
+      const job = await storage.queue.claimNextJob(this.workerId, 60000);
+      if (!job) return;
+
+      this.currentRunningCount++;
+      this.activeJobs.add(job.scanId);
+
+      this.executeJob(job)
+        .catch(err => {
+          console.error(`[JobOrchestrator] Unhandled error executing job ${job.id}:`, err);
+        })
+        .finally(() => {
+          this.currentRunningCount--;
+          this.activeJobs.delete(job.scanId);
+          // Check if more jobs are waiting
+          this.triggerPoll();
+        });
+    } catch (err) {
+      console.warn('[JobOrchestrator] Queue polling error:', err);
+    }
+  }
+
+  private async executeJob(job: JobQueueRecord): Promise<void> {
+    const scanId = job.scanId;
+    try {
+      await this.processJob(scanId);
+      await storage.queue.completeJob(job.id);
+    } catch (err: any) {
+      console.error(`[JobOrchestrator] Job ${job.id} for scan ${scanId} failed:`, err);
+
+      const isTerminal = 
+        err instanceof MediaInspectionError || 
+        err.message?.includes('Insufficient credits') ||
+        job.attempts >= job.maxAttempts;
+
+      if (!isTerminal) {
+        // Retryable: backoff exponentially
+        const backoffMs = Math.min(30000, 2000 * Math.pow(2, job.attempts));
+        await storage.queue.failJob(job.id, err.message, true, backoffMs);
+      } else {
+        // Terminal failure: refund credits idempotently and mark scan failed
+        try {
+          const refundResult = await storage.scans.refundScanCredits(scanId);
+          if (refundResult.refunded) {
+            console.log(`[JobOrchestrator] Refunded ${refundResult.amount} credits for failed job ${scanId}`);
+          }
+        } catch (refundErr) {
+          console.error(`[JobOrchestrator] Failed to execute credit refund for job ${scanId}:`, refundErr);
+        }
+
+        await storage.scans.updateScan(scanId, {
+          status: 'FAILED',
+          error: (err instanceof MediaInspectionError || err instanceof VideoProcessingError || err instanceof AudioProcessingError)
+            ? err.message
+            : 'We couldn’t complete this scan. Your video was not published or shared. Credits have been refunded. Please try again.'
+        });
+
+        await storage.queue.failJob(job.id, err.message, false);
+      }
+    }
   }
 
   private async sleep(ms: number) {

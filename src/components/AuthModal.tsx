@@ -16,9 +16,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onUserChanged,
 }) => {
-  const [mode, setMode] = useState<'account' | 'login' | 'register' | 'switch'>('account');
+  const [mode, setMode] = useState<'account' | 'login' | 'register' | 'switch' | 'forgot' | 'reset'>('account');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -155,6 +157,64 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setTimeout(() => {
       onClose();
     }, 500);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to submit password reset request.');
+      }
+      setSuccess(data.message);
+      if (data.devToken) {
+        setResetToken(data.devToken);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to reset password.');
+      }
+      setSuccess('Password updated successfully! Please sign in with your new credentials.');
+      setTimeout(() => {
+        setMode('login');
+        setPassword('');
+        setResetToken('');
+        setNewPassword('');
+        setSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -392,6 +452,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             </div>
 
+            <div className="flex items-center justify-between text-[11px] pt-0.5">
+              <span className="text-stone-500">Need account recovery?</span>
+              <button
+                type="button"
+                onClick={() => { setMode('forgot'); setError(null); setSuccess(null); }}
+                className="text-stone-700 hover:text-stone-900 font-semibold hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -415,6 +486,136 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="text-rose-600 font-semibold hover:underline"
               >
                 Create one
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 3: Forgot Password */}
+        {mode === 'forgot' && (
+          <form onSubmit={handleForgotPassword} className="p-6 space-y-4">
+            <div>
+              <h3 className="font-bold text-sm text-stone-900">Account Password Recovery</h3>
+              <p className="text-xs text-stone-500 mt-1">
+                Enter your account email to receive secure single-use password reset instructions.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="creator@videorisk.com"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg transition-colors shadow-xs flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Sending Instructions...</span>
+                </>
+              ) : (
+                <span>Send Reset Instructions</span>
+              )}
+            </button>
+
+            <div className="flex items-center justify-between text-xs pt-2">
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="text-stone-600 hover:text-stone-900 font-medium"
+              >
+                Back to Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('reset')}
+                className="text-rose-600 font-semibold hover:underline"
+              >
+                Already have a reset token?
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* Tab 4: Confirm Password Reset */}
+        {mode === 'reset' && (
+          <form onSubmit={handleResetPassword} className="p-6 space-y-4">
+            <div>
+              <h3 className="font-bold text-sm text-stone-900">Enter Reset Token</h3>
+              <p className="text-xs text-stone-500 mt-1">
+                Set a new password for your account using your single-use reset token.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                Reset Token
+              </label>
+              <input
+                type="text"
+                required
+                value={resetToken}
+                onChange={(e) => setResetToken(e.target.value)}
+                placeholder="Paste reset token here"
+                className="w-full px-3 py-2 text-xs font-mono border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-stone-700 mb-1">
+                New Password (min 8 characters)
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-stone-400 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs rounded-lg transition-colors shadow-xs flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Updating Password...</span>
+                </>
+              ) : (
+                <span>Confirm New Password</span>
+              )}
+            </button>
+
+            <div className="text-center pt-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setMode('login')}
+                className="text-stone-600 hover:text-stone-900 font-medium"
+              >
+                Back to Sign In
               </button>
             </div>
           </form>

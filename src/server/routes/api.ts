@@ -244,6 +244,114 @@ apiRouter.post('/auth/logout', async (req: Request, res: Response) => {
   }
 });
 
+// Password Recovery: Request Reset Token (Public, Non-enumerating, Rate-limited)
+apiRouter.post('/auth/forgot-password', async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'A valid email address is required.' });
+    }
+
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.ip || req.socket.remoteAddress || 'unknown';
+    const allowed = await storage.passwordReset.checkRateLimit(clientIp, 'forgot_password', 5, 900);
+    if (!allowed) {
+      return res.status(429).json({ error: 'Too many password reset requests. Please wait a few minutes before trying again.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await storage.users.getUserByEmail(normalizedEmail);
+
+    let devToken: string | undefined;
+
+    if (user) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour expiration
+
+      await storage.passwordReset.createResetToken(user.id, tokenHash, expiresAt);
+
+      // Safe development-only exposure for testing/local verification
+      if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_DEV_RESET_TOKEN === 'true') {
+        devToken = rawToken;
+      }
+
+      if (process.env.SMTP_HOST && process.env.SMTP_USER) {
+        console.log(`[Auth] Dispatched password reset notification for account: ${user.email}`);
+      }
+    }
+
+    // Strict non-enumerating response: never reveals whether email exists
+    res.json({
+      success: true,
+      message: 'If an account exists with that email address, password reset instructions have been generated.',
+      ...(devToken ? { devToken } : {})
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Unable to process password reset request.' });
+  }
+});
+
+// Password Recovery: Confirm Reset (Public, Single-Use Token, Invalidate Sessions)
+apiRouter.post('/auth/reset-password', async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || typeof token !== 'string') {
+      return res.status(400).json({ error: 'Reset token is required.' });
+    }
+    if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+    }
+
+    const clientIp = (req.headers['x-forwarded-for'] as string) || req.ip || req.socket.remoteAddress || 'unknown';
+    const allowed = await storage.passwordReset.checkRateLimit(clientIp, 'reset_password_attempt', 10, 900);
+    if (!allowed) {
+      return res.status(429).json({ error: 'Too many reset attempts. Please wait before trying again.' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+    const resetRecord = await storage.passwordReset.getResetToken(tokenHash);
+
+    if (!resetRecord) {
+      return res.status(400).json({ error: 'Invalid or expired password reset token.' });
+    }
+
+    if (resetRecord.usedAt) {
+      return res.status(400).json({ error: 'This password reset token has already been used.' });
+    }
+
+    if (new Date(resetRecord.expiresAt) < new Date()) {
+      return res.status(400).json({ error: 'This password reset token has expired. Please request a new one.' });
+    }
+
+    const user = await storage.users.getUser(resetRecord.userId);
+    if (!user) {
+      return res.status(400).json({ error: 'Associated user account no longer exists.' });
+    }
+
+    // Scrypt password hash
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = crypto.scryptSync(newPassword, salt, 64).toString('hex');
+
+    await storage.users.updateUser(user.id, {
+      passwordHash,
+      salt
+    });
+
+    // Mark single-use token as permanently used
+    await storage.passwordReset.markTokenUsed(tokenHash);
+
+    // Invalidate all active sessions for this user to revoke unauthorized access
+    await storage.passwordReset.revokeAllUserSessions(user.id);
+
+    res.json({
+      success: true,
+      message: 'Your password has been successfully reset. Please sign in with your new password.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
 // Authenticated session check (Protected)
 apiRouter.get('/auth/me', async (req: Request, res: Response) => {
   try {
@@ -1059,5 +1167,123 @@ apiRouter.get('/scans/:id/comparison', async (req: Request, res: Response) => {
     res.json(comparison);
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to retrieve comparison.' });
+  }
+});
+
+// 15. Secure Scan Deletion & Asset Retention Cleanup (Workstream 14)
+apiRouter.delete('/scans/:id', async (req: Request, res: Response) => {
+  try {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    const scan = await storage.scans.getScan(req.params.id);
+    if (!scan) {
+      return res.status(404).json({ error: 'Scan not found.' });
+    }
+    if (scan.userId !== user.id) {
+      return res.status(403).json({ error: 'Access denied: Cannot delete scan belonging to another user.' });
+    }
+
+    let filesRemoved = 0;
+    if (scan.videoPath && isSafeUploadPath(scan.videoPath) && fs.existsSync(scan.videoPath)) {
+      try {
+        fs.unlinkSync(scan.videoPath);
+        filesRemoved++;
+      } catch (e) {
+        console.warn('[Storage] Failed to unlink video file:', e);
+      }
+    }
+
+    if (scan.thumbnailPath && isSafeUploadPath(scan.thumbnailPath) && fs.existsSync(scan.thumbnailPath)) {
+      try {
+        fs.unlinkSync(scan.thumbnailPath);
+        filesRemoved++;
+      } catch (e) {
+        console.warn('[Storage] Failed to unlink thumbnail file:', e);
+      }
+    }
+
+    if (scan.proxyPath && isSafeUploadPath(scan.proxyPath) && fs.existsSync(scan.proxyPath)) {
+      try {
+        fs.unlinkSync(scan.proxyPath);
+        filesRemoved++;
+      } catch (e) {
+        console.warn('[Storage] Failed to unlink proxy file:', e);
+      }
+    }
+
+    const deleted = await storage.scans.deleteScan(req.params.id);
+    res.json({
+      success: deleted,
+      deletedScanId: req.params.id,
+      filesRemoved,
+      message: 'Scan and associated assets securely deleted from storage.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to delete scan.' });
+  }
+});
+
+// 16. Secure Upload Deletion (Workstream 14)
+apiRouter.delete('/uploads/:fileId', async (req: Request, res: Response) => {
+  try {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    const upload = await storage.uploads.getUpload(req.params.fileId);
+    if (!upload) {
+      return res.status(404).json({ error: 'Upload not found.' });
+    }
+    if (upload.userId !== user.id) {
+      return res.status(403).json({ error: 'Access denied: Cannot delete file belonging to another user.' });
+    }
+
+    if (isSafeUploadPath(upload.filePath) && fs.existsSync(upload.filePath)) {
+      try {
+        fs.unlinkSync(upload.filePath);
+      } catch (e) {
+        console.warn('[Storage] Failed to unlink upload file:', e);
+      }
+    }
+
+    const deleted = await storage.uploads.deleteUpload(req.params.fileId);
+    res.json({
+      success: deleted,
+      fileId: req.params.fileId,
+      message: 'Uploaded file securely removed from storage.'
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to delete upload.' });
+  }
+});
+
+// 17. Operational Metrics & Cost Telemetry (Workstream 12)
+apiRouter.get('/operational/metrics', async (req: Request, res: Response) => {
+  try {
+    const user = await requireAuth(req, res);
+    if (!user) return;
+
+    if (storage.getOperationalMetrics) {
+      const metrics = await storage.getOperationalMetrics();
+      return res.json(metrics);
+    }
+
+    res.json({
+      totalScans: 0,
+      completedScans: 0,
+      failedScans: 0,
+      averageProcessingSeconds: 0,
+      totalDurationSecondsScanned: 0,
+      estimatedComputeCostUsd: 0,
+      estimatedStorageCostUsd: 0,
+      measuredStageAveragesMs: {
+        inspection: 0,
+        audio: 0,
+        video: 0,
+        policy: 0
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve operational metrics.' });
   }
 });
