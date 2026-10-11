@@ -85,6 +85,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
         return <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Clean Signals</span>;
       case 'INSUFFICIENT_EVIDENCE':
         return <span className="bg-stone-100 text-stone-600 text-[10px] font-bold px-2 py-0.5 rounded">Insufficient Evidence</span>;
+      case 'NOT_ASSESSED':
+        return <span className="bg-stone-100 text-stone-600 text-[10px] font-bold px-2 py-0.5 rounded">Not Assessed</span>;
       case 'ANALYSIS_UNAVAILABLE':
         return <span className="bg-stone-200 text-stone-700 text-[10px] font-bold px-2 py-0.5 rounded">Unavailable</span>;
       case 'NOT_PROVIDED':
@@ -187,7 +189,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 Original Voice
               </span>
               <span className="text-xl font-black text-stone-900 font-mono">
-                {report.originalContributionRatio}%
+                {typeof report.originalContributionRatio === 'number' ? `${report.originalContributionRatio}%` : 'Not Assessed'}
               </span>
             </div>
             <div>
@@ -475,7 +477,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
                   pc.impact === 'High Scrutiny' ? 'bg-rose-100 text-rose-800' :
                   pc.impact === 'Moderate Concern' ? 'bg-amber-100 text-amber-800' :
-                  'bg-emerald-100 text-emerald-800'
+                  pc.impact === 'No Direct Issues Detected' ? 'bg-blue-100 text-blue-800' :
+                  pc.impact === 'Insufficient Evidence' ? 'bg-stone-100 text-stone-700' :
+                  pc.impact === 'Not Assessed' ? 'bg-stone-100 text-stone-600' :
+                  'bg-stone-100 text-stone-800'
                 }`}>
                   {pc.impact}
                 </span>

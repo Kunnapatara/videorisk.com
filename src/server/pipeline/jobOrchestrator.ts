@@ -21,12 +21,15 @@ export class JobOrchestrator {
     // Fire and forget, does NOT block HTTP request
     this.processJob(scanId).catch(async (err) => {
       console.error(`[JobOrchestrator] Job ${scanId} failed:`, err);
-      const scan = await storage.scans.getScan(scanId);
 
-      // Deterministic Refund if credits were deducted
-      if (scan && scan.creditsUsed > 0) {
-        await storage.users.addCredits(scan.userId, scan.creditsUsed);
-        console.log(`[JobOrchestrator] Refunded ${scan.creditsUsed} credits to user ${scan.userId} for failed job ${scanId}`);
+      // Deterministic, idempotent refund if credits were deducted
+      try {
+        const refundResult = await storage.scans.refundScanCredits(scanId);
+        if (refundResult.refunded) {
+          console.log(`[JobOrchestrator] Refunded ${refundResult.amount} credits for failed job ${scanId}`);
+        }
+      } catch (refundErr) {
+        console.error(`[JobOrchestrator] Failed to execute credit refund for job ${scanId}:`, refundErr);
       }
 
       await storage.scans.updateScan(scanId, {
@@ -72,7 +75,7 @@ export class JobOrchestrator {
 
       // Deduct credits based on real duration
       const requiredCredits = creditService.calculateRequiredCredits(metadata.durationSeconds, scan.scanMode);
-      const deducted = await storage.users.deductCredits(scan.userId, requiredCredits);
+      const deducted = await storage.scans.deductScanCredits(scanId, scan.userId, requiredCredits);
       
       if (!deducted) {
         throw new Error(`Insufficient credits. Required: ${requiredCredits} minute(s), but available balance is lower.`);

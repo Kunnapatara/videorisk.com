@@ -89,6 +89,7 @@ export class PolicyIntelligenceEngine {
       confidence: number;
       confidenceLevel: ConfidenceLevel;
       uncertaintyReason?: UncertaintyReason;
+      evidenceStatus?: EvidenceItem['evidenceStatus'];
       provenance: string;
       source: string;
       label: string;
@@ -113,6 +114,7 @@ export class PolicyIntelligenceEngine {
         confidence: opts.confidence,
         confidenceLevel: opts.confidenceLevel,
         uncertaintyReason: opts.uncertaintyReason || 'NONE',
+        evidenceStatus: opts.evidenceStatus || 'OBSERVED',
         provenance: opts.provenance,
         source: opts.source,
         label: opts.label,
@@ -137,19 +139,20 @@ export class PolicyIntelligenceEngine {
           domain: 'video_audio',
           start: 0,
           end: dur,
-          type: 'declared_narration_acoustic_active',
+          type: 'declared_narration_unverified',
           category: 'original_contribution',
           severity: 'info',
-          confidence: 0.70,
-          confidenceLevel: 'MEDIUM',
+          confidence: 0.50,
+          confidenceLevel: 'LOW',
           uncertaintyReason: 'AMBIGUOUS_CONTEXT',
-          provenance: 'channel_profile:declared + ffmpeg:volumedetect',
+          evidenceStatus: 'OBSERVED',
+          provenance: 'channel_profile:self_reported + ffmpeg:volumedetect',
           source: 'acoustic_profile_correlation',
-          label: 'ℹ️ Acoustic Audio Activity (Narration Declared in Profile)',
-          details: `Audio track is audible (${activePct}% acoustic activity). Channel profile specifies creator voiceover workflow ("${channelProfile?.originalVoiceNarration}").`,
-          contextualInterpretation: 'Creator commentary supports transformative originality under platform monetization standards.',
-          limitations: 'Acoustic volume confirms audio track presence, but automated speech recognition is not performed to verify spoken words or dialogue content.',
-          recommendedAction: 'Ensure creator commentary remains audible and clear throughout any external footage.'
+          label: 'ℹ️ Acoustic Audio Activity (Profile Declaration Unverified)',
+          details: `Acoustic sound energy detected across ${activePct}% of the audio track. Creator channel profile declares voice narration workflow ("${channelProfile?.originalVoiceNarration}"), but this declaration has not been independently verified through speech transcription.`,
+          contextualInterpretation: 'Self-reported workflow suggests creator commentary, but decibel measurements cannot confirm spoken dialogue or creative value.',
+          limitations: 'User channel profile declarations are self-reported and cannot be treated as independently verified evidence. Acoustic volume confirms sound presence only.',
+          recommendedAction: 'Verify that creator spoken commentary is clearly audible and distinct from background audio.'
         });
       } else {
         addItem({
@@ -162,6 +165,7 @@ export class PolicyIntelligenceEngine {
           confidence: 0.60,
           confidenceLevel: 'LOW',
           uncertaintyReason: 'AMBIGUOUS_CONTEXT',
+          evidenceStatus: 'OBSERVED',
           provenance: 'ffmpeg:silencedetect:volumedetect',
           source: 'audio_spectrum',
           label: 'ℹ️ Measurable Acoustic Audio Activity',
@@ -182,6 +186,7 @@ export class PolicyIntelligenceEngine {
         confidence: 0.90,
         confidenceLevel: 'HIGH',
         uncertaintyReason: 'NONE',
+        evidenceStatus: 'VERIFIED',
         provenance: 'ffmpeg:silencedetect:full_track',
         source: 'audio_spectrum',
         label: 'ℹ️ Silent or Near-Silent Audio Track',
@@ -452,14 +457,12 @@ export class PolicyIntelligenceEngine {
     const highWarnings = timeline.filter(t => t.severity === 'high');
     const warnings = timeline.filter(t => t.severity === 'warning');
 
-    // Empirical metrics
-    const originalContributionRatio = channelProfile?.originalVoiceNarration === 'always'
-      ? Math.min(100, Math.max(0, Math.round((1 - input.audioResult.silenceRatio) * 100)))
-      : channelProfile?.originalVoiceNarration === 'mostly'
-        ? Math.min(100, Math.max(0, Math.round((1 - input.audioResult.silenceRatio) * 75)))
-        : metadata.hasAudio
-          ? Math.min(100, Math.max(0, Math.round((1 - input.audioResult.silenceRatio) * 50)))
-          : 0;
+    // Evidence integrity: Do not derive original contribution from acoustic energy, silence ratio, or self-reported profiles.
+    // When reliable speech/commentary transcript measurement is unavailable, represent as unassessed/insufficient evidence.
+    const originalContributionRatio: number | null = null;
+    const transformationScore: number | null = null;
+    const originalContributionStatus: EvidenceItem['evidenceStatus'] = 'INSUFFICIENT_EVIDENCE';
+    const transformationStatus: EvidenceItem['evidenceStatus'] = 'NOT_ASSESSED';
     
     let reusedContentRatio = 0;
     const reusedItems = timeline.filter(t => t.category === 'reused_content' && t.severity !== 'info');
@@ -480,7 +483,7 @@ export class PolicyIntelligenceEngine {
       riskSummary = 'Moderate risk signals detected. Review highlighted segments and recommendations.';
     } else {
       overallRisk = 'LOW_RISK';
-      riskSummary = 'No major risk signals detected across analyzed publishing assets.';
+      riskSummary = 'No major risk signals detected across analyzed publishing assets. This is not a compliance determination.';
     }
 
     // Top Issues (Grounded in WHAT, WHERE, WHY, FIX, EVIDENCE, CONTEXT, LIMITATIONS)
@@ -577,43 +580,65 @@ export class PolicyIntelligenceEngine {
             ? 'REVIEW_RECOMMENDED'
             : 'NO_MAJOR_RISK_SIGNALS_DETECTED',
         summary: channelProfile
-          ? `Grounded in Profile v${channelProfile.version} ("${channelProfile.channelTopic}", ${channelProfile.contentType}).`
+          ? `Grounded in Profile v${channelProfile.version} ("${channelProfile.channelTopic}", ${channelProfile.contentType}). Self-reported declarations are unverified.`
           : 'No Channel Context Profile linked. Using general YouTube creator baseline.',
         findingsCount: timeline.filter(t => t.domain === 'channel_context' && t.severity !== 'info').length,
-        confidence: channelProfile ? 'HIGH' : 'LOW',
-        limitations: 'Channel Context is user-declared; VideoRisk does not verify YouTube channel account history.'
+        confidence: channelProfile ? 'MEDIUM' : 'LOW',
+        limitations: 'Channel Context is user-declared; VideoRisk does not independently verify account history or self-reported claims.'
       }
     };
 
-    // Policy Connections
+    // Policy Connections - Never equate "no warning detected" with "Compliant"
     const policyConnections: PolicyConnection[] = [
       {
         policyName: 'YouTube Partner Program (YPP) Reused Content',
         category: 'reused_content',
-        impact: reusedContentRatio > 25 ? 'High Scrutiny' : (channelProfile?.thirdPartyFootageUsage && channelProfile.thirdPartyFootageUsage !== 'none' ? 'Moderate Concern' : 'Compliant'),
+        impact: reusedContentRatio > 25 
+          ? 'High Scrutiny' 
+          : (channelProfile?.thirdPartyFootageUsage && channelProfile.thirdPartyFootageUsage !== 'none' 
+            ? 'Moderate Concern' 
+            : 'No Direct Issues Detected'),
         signalsCount: timeline.filter(t => t.category === 'reused_content' && t.severity !== 'info').length,
-        description: 'Requires that external clips be incorporated into original commentary, critique, or education.'
+        description: 'Requires that external clips be incorporated into original commentary, critique, or education. VideoRisk does not query third-party visual catalogs; this is not a compliance determination.',
+        evidenceStatus: reusedContentRatio > 25 ? 'OBSERVED' : 'INSUFFICIENT_EVIDENCE'
       },
       {
         policyName: 'Original Creator Contribution & Value Add',
         category: 'original_contribution',
-        impact: (!metadata.hasAudio || input.audioResult.silenceRatio > 0.9) ? 'Moderate Concern' : 'Compliant',
+        impact: (!metadata.hasAudio || input.audioResult.silenceRatio > 0.9) 
+          ? 'Moderate Concern' 
+          : 'Insufficient Evidence',
         signalsCount: timeline.filter(t => t.category === 'original_contribution' && t.severity !== 'info').length,
-        description: 'Evaluates presence of creator voice, unique synthesis, editing structure, and educational value.'
+        description: 'Evaluates creator commentary and educational value. Acoustic sound alone does not verify speech presence or original contribution.',
+        evidenceStatus: (!metadata.hasAudio || input.audioResult.silenceRatio > 0.9) ? 'OBSERVED' : 'INSUFFICIENT_EVIDENCE'
       },
       {
         policyName: 'Inauthentic & Mass-Produced Content Policy',
         category: 'inauthentic_pattern',
-        impact: timeline.some(t => t.category === 'inauthentic_pattern' && t.severity !== 'info') ? 'Moderate Concern' : 'Compliant',
+        impact: timeline.some(t => t.category === 'inauthentic_pattern' && t.severity !== 'info') 
+          ? 'Moderate Concern' 
+          : 'Not Assessed',
         signalsCount: timeline.filter(t => t.category === 'inauthentic_pattern' && t.severity !== 'info').length,
-        description: 'Evaluates whether footage follows repetitive automated templates without meaningful differentiation.'
+        description: 'Evaluates repetitive templated video generation. Channel-wide mass production is not assessed from an isolated upload.',
+        evidenceStatus: timeline.some(t => t.category === 'inauthentic_pattern' && t.severity !== 'info') ? 'OBSERVED' : 'NOT_ASSESSED'
       },
       {
         policyName: 'Advertiser-Friendly Ad Suitability Guidelines',
         category: 'advertiser_friendly',
-        impact: timeline.some(t => t.category === 'advertiser_friendly' && t.severity !== 'info') ? 'Moderate Concern' : 'Compliant',
+        impact: timeline.some(t => t.category === 'advertiser_friendly' && t.severity !== 'info') 
+          ? 'Moderate Concern' 
+          : 'No Direct Issues Detected',
         signalsCount: timeline.filter(t => t.category === 'advertiser_friendly' && t.severity !== 'info').length,
-        description: 'Maintains ad suitability standards regarding vulgar language, sensitive themes, and shocking visual hooks.'
+        description: 'Maintains ad suitability standards regarding language and sensitive themes. No policy triggers identified in analyzed text; review YouTube self-certification guidelines upon publishing.',
+        evidenceStatus: 'OBSERVED'
+      },
+      {
+        policyName: 'Copyright & Content ID Fingerprint Screening',
+        category: 'reused_content',
+        impact: 'Not Assessed',
+        signalsCount: 0,
+        description: 'VideoRisk inspects local file attributes; it does not perform Content ID fingerprinting or query private copyright databases.',
+        evidenceStatus: 'NOT_ASSESSED'
       }
     ];
 
@@ -635,7 +660,7 @@ export class PolicyIntelligenceEngine {
           label: 'Channel & YPP Eligibility',
           explanation: yppScore > 25 
             ? 'Review originality, disclosures, or third-party usage declarations prior to publishing.'
-            : 'No unverified risk signals or severe policy triggers detected.'
+            : 'No direct risk signals identified by local checks performed. This is not a compliance determination.'
         },
         videoMonetization: {
           status: videoMonetizationScore > 50 ? 'HIGH_RISK' : (videoMonetizationScore > 25 ? 'NEEDS_REVIEW' : 'LOW_RISK'),
@@ -643,31 +668,33 @@ export class PolicyIntelligenceEngine {
           label: 'Individual Video Monetization',
           explanation: videoMonetizationScore > 25
             ? 'Review flagged elements to ensure compliance with YouTube monetization standards.'
-            : 'Favorable conditions for green monetization icon.'
+            : 'No direct policy warnings identified by local checks performed. This is not a monetization guarantee.'
         },
         advertiserFriendly: {
           status: advertiserScore > 30 ? 'NEEDS_REVIEW' : 'LOW_RISK',
           score: advertiserScore,
           label: 'Advertiser-Friendly Suitability',
           explanation: advertiserScore > 30
-            ? 'Specific keywords or visual pacing suggest reviewing ad suitability self-certification.'
-            : 'No profanity spikes or graphic policy triggers detected in audio or metadata.'
+            ? 'Specific keywords suggest reviewing ad suitability self-certification.'
+            : 'No sensitive policy trigger keywords detected in checked metadata.'
         },
         copyrightSignals: {
           status: copyrightScore > 35 ? 'NEEDS_REVIEW' : 'LOW_RISK',
           score: copyrightScore,
           label: 'Copyright & Third-Party Signals',
           explanation: copyrightScore > 35
-            ? 'Contains recognized audio/visual sequences that may match third-party material.'
-            : 'No significant unlicensed fingerprints detected.'
+            ? 'Contains visual or structural signals that warrant manual review.'
+            : 'No direct local copyright flags identified. VideoRisk does not perform YouTube Content ID fingerprinting or database matching.'
         }
       },
       topIssues,
       policyConnections,
       timeline,
       originalContributionRatio,
+      originalContributionStatus,
       reusedContentRatio,
-      transformationScore: Math.min(100, Math.max(10, Math.round(originalContributionRatio * 0.8 + 20))),
+      transformationScore,
+      transformationStatus,
       metadataScore: topIssues.some(t => t.domain === 'title' || t.domain === 'description_tags') ? 65 : 95,
       thumbnailScore: thumbnailMetadata ? (thumbnailMetadata.isStandardAspect ? 90 : 60) : undefined,
       channelProfileSnapshot: channelProfile || undefined,
@@ -715,7 +742,11 @@ export class PolicyIntelligenceEngine {
     const remainingIssues = revisedReport.topIssues.map(i => `${i.where}: ${i.what}`);
     const improvements: string[] = [];
 
-    if (revisedReport.originalContributionRatio > originalReport.originalContributionRatio) {
+    if (
+      typeof originalReport.originalContributionRatio === 'number' && 
+      typeof revisedReport.originalContributionRatio === 'number' &&
+      revisedReport.originalContributionRatio > originalReport.originalContributionRatio
+    ) {
       improvements.push(`Original commentary increased from ${originalReport.originalContributionRatio}% to ${revisedReport.originalContributionRatio}%`);
     }
     if (revisedReport.reusedContentRatio < originalReport.reusedContentRatio) {
@@ -743,11 +774,11 @@ export class PolicyIntelligenceEngine {
         ? `Re-scan verified. Resolved ${resolvedIssues.length} prior risk signal(s) with evidence.`
         : 'Re-scan verified. Risk assessment updated based on revised timeline.',
       originalRatios: {
-        originalContribution: originalReport.originalContributionRatio,
+        originalContribution: originalReport.originalContributionRatio ?? null,
         reusedContent: originalReport.reusedContentRatio
       },
       revisedRatios: {
-        originalContribution: revisedReport.originalContributionRatio,
+        originalContribution: revisedReport.originalContributionRatio ?? null,
         reusedContent: revisedReport.reusedContentRatio
       }
     };

@@ -6,6 +6,7 @@ import { runProductCapabilitiesTests } from './product_capabilities.test';
 import { runPersistenceAndBillingHardeningTests } from './persistence_and_billing_hardening.test';
 import { runStorageFailClosedTests } from './storage_fail_closed.test';
 import { runFreeCreditHardeningTests } from './free_credit_hardening.test';
+import { runEvidenceIntegrityHardeningTests } from './evidence_integrity_hardening.test';
 
 async function main() {
   console.log('######################################################');
@@ -30,6 +31,9 @@ async function main() {
 
     // Run Suite 5: Free Credit Claim Hardening
     await runFreeCreditHardeningTests();
+
+    // Run Suite 6: Evidence Integrity Hardening & Credit Refund
+    await runEvidenceIntegrityHardeningTests();
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log(`\n🎉 ALL AUTOMATED VERIFICATION SUITES COMPLETED SUCCESSFULLY in ${elapsed}s!`);

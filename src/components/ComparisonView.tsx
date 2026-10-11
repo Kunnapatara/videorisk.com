@@ -82,7 +82,11 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({
             </div>
             <div className="flex justify-between py-1.5 border-b border-stone-50">
               <span className="text-stone-500">Original Commentary:</span>
-              <strong className="text-stone-900">{comparison.originalRatios.originalContribution}%</strong>
+              <strong className="text-stone-900">
+                {typeof comparison.originalRatios.originalContribution === 'number'
+                  ? `${comparison.originalRatios.originalContribution}%`
+                  : 'Not Assessed'}
+              </strong>
             </div>
             <div className="flex justify-between py-1.5 border-b border-stone-50">
               <span className="text-stone-500">Reused Material:</span>
@@ -109,7 +113,13 @@ export const ComparisonView: React.FC<ComparisonViewProps> = ({
             </div>
             <div className="flex justify-between py-1.5 border-b border-stone-50">
               <span className="text-stone-500">Original Commentary:</span>
-              <strong className="text-emerald-700 font-bold">{comparison.revisedRatios.originalContribution}% (+{comparison.revisedRatios.originalContribution - comparison.originalRatios.originalContribution}%)</strong>
+              <strong className="text-emerald-700 font-bold">
+                {typeof comparison.revisedRatios.originalContribution === 'number' && typeof comparison.originalRatios.originalContribution === 'number'
+                  ? `${comparison.revisedRatios.originalContribution}% (+${comparison.revisedRatios.originalContribution - comparison.originalRatios.originalContribution}%)`
+                  : typeof comparison.revisedRatios.originalContribution === 'number'
+                    ? `${comparison.revisedRatios.originalContribution}%`
+                    : 'Not Assessed'}
+              </strong>
             </div>
             <div className="flex justify-between py-1.5 border-b border-stone-50">
               <span className="text-stone-500">Reused Material:</span>

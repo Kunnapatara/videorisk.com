@@ -17,6 +17,8 @@ export interface AudioAnalysisResult {
   voiceoverRatio: number; // 0 to 1
   silenceRatio: number;
   hasMusicDetected: boolean;
+  meanVolumeDb?: number;
+  isAudible?: boolean;
   advertiserSpeechFlags: Array<{ word: string; timestamp: number; category: string }>;
   segments: Array<{ start: number; end: number; type: 'voice' | 'music' | 'silence' | 'mixed' }>;
   transcriptSummary: string;
@@ -38,6 +40,8 @@ export class AudioProcessor {
         voiceoverRatio: 0,
         silenceRatio: 1,
         hasMusicDetected: false,
+        meanVolumeDb: undefined,
+        isAudible: false,
         advertiserSpeechFlags: [],
         segments: [{ start: 0, end: metadata.durationSeconds, type: 'silence' }],
         transcriptSummary: 'No audio stream detected in container.'
@@ -58,11 +62,24 @@ export class AudioProcessor {
         const { stdout, stderr } = await execFileAsync('ffmpeg', args, { timeout: 30000 });
         output = (stdout || '') + (stderr || '');
       } catch (procErr: any) {
-        // If ffmpeg errored with fatal exit code
-        if (procErr.code && procErr.code !== 0 && !procErr.stderr?.includes('mean_volume')) {
-          throw new AudioProcessingError(`FFmpeg audio analysis failed: ${procErr.message || procErr}`);
-        }
-        output = (procErr.stdout || '') + (procErr.stderr || '');
+        // Fail closed: Never treat partial output from a failed FFmpeg process as a successful measurement
+        throw new AudioProcessingError(`FFmpeg audio analysis failed: ${procErr?.message || procErr}`);
+      }
+
+      const dur = metadata.durationSeconds;
+      if (!Number.isFinite(dur) || dur <= 0) {
+        throw new AudioProcessingError(`FFmpeg audio analysis failed: invalid or non-finite duration (${dur})`);
+      }
+
+      // Look for volume level indicators - fail closed if missing or malformed
+      const meanVolumeMatch = output.match(/mean_volume:\s*(-?[\d.]+)\s*dB/);
+      if (!meanVolumeMatch) {
+        throw new AudioProcessingError('FFmpeg audio analysis failed: missing mean_volume measurement in output');
+      }
+
+      const meanVol = parseFloat(meanVolumeMatch[1]);
+      if (!Number.isFinite(meanVol)) {
+        throw new AudioProcessingError(`FFmpeg audio analysis failed: malformed non-finite mean_volume measurement (${meanVolumeMatch[1]})`);
       }
 
       // Parse silencedetect events
@@ -73,22 +90,27 @@ export class AudioProcessor {
 
       for (const m of silenceMatches) {
         if (m[0].startsWith('silence_start')) {
-          lastStart = parseFloat(m[1]);
+          const val = parseFloat(m[1]);
+          if (Number.isFinite(val)) {
+            lastStart = val;
+          }
         } else if (m[0].startsWith('silence_end') && lastStart !== null) {
           const end = parseFloat(m[2]);
-          totalSilenceDuration += (end - lastStart);
-          segments.push({ start: Math.round(lastStart), end: Math.round(end), type: 'silence' });
+          if (Number.isFinite(end) && end >= lastStart) {
+            totalSilenceDuration += (end - lastStart);
+            segments.push({ start: Math.round(lastStart), end: Math.round(end), type: 'silence' });
+          }
           lastStart = null;
         }
       }
 
-      const dur = Math.max(0.1, metadata.durationSeconds || 0.1);
+      if (!Number.isFinite(totalSilenceDuration)) {
+        throw new AudioProcessingError('FFmpeg audio analysis failed: malformed silence duration calculation');
+      }
+
       const silenceRatio = Math.min(1, totalSilenceDuration / dur);
       const activeRatio = Math.max(0, 1 - silenceRatio);
       
-      // Look for volume level indicators
-      const meanVolumeMatch = output.match(/mean_volume: (-?[\d.]+) dB/);
-      const meanVol = meanVolumeMatch ? parseFloat(meanVolumeMatch[1]) : -20;
       const isAudible = meanVol > -50;
 
       // Distinguish measurable acoustic activity from verified speech:
@@ -125,6 +147,8 @@ export class AudioProcessor {
         voiceoverRatio,
         silenceRatio: parseFloat(silenceRatio.toFixed(2)),
         hasMusicDetected,
+        meanVolumeDb: meanVol,
+        isAudible,
         advertiserSpeechFlags: [],
         segments,
         transcriptSummary: isAudible 

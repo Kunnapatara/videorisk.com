@@ -34,8 +34,11 @@ export type DomainAssessmentStatus =
   | 'REVIEW_RECOMMENDED'
   | 'NO_MAJOR_RISK_SIGNALS_DETECTED'
   | 'INSUFFICIENT_EVIDENCE'
+  | 'NOT_ASSESSED'
   | 'ANALYSIS_UNAVAILABLE'
   | 'NOT_PROVIDED';
+
+export type EvidenceStatus = 'VERIFIED' | 'OBSERVED' | 'INSUFFICIENT_EVIDENCE' | 'NOT_ASSESSED';
 
 export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
 
@@ -88,6 +91,7 @@ export interface EvidenceItem {
   confidence: number; // 0 to 1
   confidenceLevel: ConfidenceLevel;
   uncertaintyReason?: UncertaintyReason;
+  evidenceStatus?: EvidenceStatus;
   provenance: string; // Extraction method / analyzer source (e.g. "ffmpeg:silencedetect", "nlp:metadata_compare")
   source: string;
   label: string;
@@ -123,12 +127,23 @@ export interface RiskCategorySummary {
   explanation: string;
 }
 
+export type PolicyImpact = 
+  | 'High Scrutiny' 
+  | 'Moderate Concern' 
+  | 'Standard Baseline' 
+  | 'No Direct Issues Detected' 
+  | 'Insufficient Evidence' 
+  | 'Not Assessed' 
+  | 'Compliant';
+
 export interface PolicyConnection {
   policyName: string;
   category: EvidenceCategory;
-  impact: 'High Scrutiny' | 'Moderate Concern' | 'Standard Baseline' | 'Compliant';
+  impact: PolicyImpact;
   signalsCount: number;
   description: string;
+  evidenceStatus?: EvidenceStatus;
+  notes?: string;
 }
 
 export interface DomainReport {
@@ -198,9 +213,11 @@ export interface RiskReport {
   topIssues: TopIssue[];
   policyConnections: PolicyConnection[];
   timeline: EvidenceItem[];
-  originalContributionRatio: number; // 0 - 100%
+  originalContributionRatio?: number | null; // 0 - 100% or null when unassessed/insufficient evidence
+  originalContributionStatus?: EvidenceStatus;
   reusedContentRatio: number; // 0 - 100%
-  transformationScore: number; // 0 - 100%
+  transformationScore?: number | null; // 0 - 100% or null when unassessed/insufficient evidence
+  transformationStatus?: EvidenceStatus;
   metadataScore: number; // 0 - 100%
   thumbnailScore?: number; // 0 - 100%
   channelProfileSnapshot?: ChannelContextProfile;
@@ -233,6 +250,9 @@ export interface ScanJob {
   currentStage: ScanStage;
   completedStages: ScanStage[];
   creditsUsed: number;
+  creditsDeducted?: number;
+  creditsRefunded?: boolean;
+  creditsRefundedAmount?: number;
   metadata?: MediaMetadata;
   createdAt: string;
   completedAt?: string;
@@ -256,11 +276,11 @@ export interface ReScanComparison {
   improvements: string[];
   comparisonSummary: string;
   originalRatios: {
-    originalContribution: number;
+    originalContribution?: number | null;
     reusedContent: number;
   };
   revisedRatios: {
-    originalContribution: number;
+    originalContribution?: number | null;
     reusedContent: number;
   };
 }

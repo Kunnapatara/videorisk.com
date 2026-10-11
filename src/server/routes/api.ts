@@ -669,7 +669,7 @@ apiRouter.get('/channel/patterns', async (req: Request, res: Response) => {
       for (const s of completedScans) {
         const report = await storage.scans.getReport(s.id);
         if (report) {
-          if (report.originalContributionRatio < 20) {
+          if (typeof report.originalContributionRatio === 'number' && report.originalContributionRatio < 20) {
             lowVoiceCount++;
           }
           if (report.topIssues.some(i => i.domain === 'title' && i.category === 'metadata_coherence')) {

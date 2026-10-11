@@ -44,6 +44,8 @@ export interface IScanRepository {
   getReport(scanId: string): Promise<RiskReport | null>;
   saveComparison(comparison: ReScanComparison): Promise<void>;
   getComparison(revisedScanId: string): Promise<ReScanComparison | null>;
+  deductScanCredits(scanId: string, userId: string, amount: number): Promise<boolean>;
+  refundScanCredits(scanId: string, hintAmount?: number): Promise<{ refunded: boolean; amount: number }>;
 }
 
 export interface IEvidenceRepository {
@@ -485,6 +487,68 @@ export class InMemoryStorageRepository implements IStorageRepository {
     },
     getComparison: async (revisedScanId: string) => {
       return this.state.comparisons[revisedScanId] || null;
+    },
+    deductScanCredits: async (scanId: string, userId: string, amount: number) => {
+      return await this.runTransaction(async (state) => {
+        const user = state.users[userId];
+        if (!user) throw new Error(`User not found: ${userId}`);
+        const scan = state.scans[scanId];
+        if (!scan) throw new Error(`Scan not found: ${scanId}`);
+
+        const cleanAmount = Math.max(0, Math.round(amount));
+        if (cleanAmount <= 0) return true;
+
+        // Idempotency: if already deducted for this scan, do not deduct again
+        if (scan.creditsDeducted && scan.creditsDeducted > 0) {
+          return true;
+        }
+
+        if (user.creditsRemaining < cleanAmount) return false;
+
+        user.creditsRemaining -= cleanAmount;
+        user.creditsUsedTotal += cleanAmount;
+        scan.creditsDeducted = cleanAmount;
+        scan.creditsUsed = cleanAmount;
+        scan.creditsRefunded = false;
+        return true;
+      });
+    },
+    refundScanCredits: async (scanId: string, hintAmount?: number) => {
+      return await this.runTransaction(async (state) => {
+        const scan = state.scans[scanId];
+        if (!scan) {
+          return { refunded: false, amount: 0 };
+        }
+
+        // Prevent double refunds
+        if (scan.creditsRefunded) {
+          return { refunded: false, amount: 0 };
+        }
+
+        const amountToRefund = Math.max(
+          0,
+          scan.creditsDeducted || 0,
+          scan.creditsUsed || 0,
+          hintAmount || 0
+        );
+
+        if (amountToRefund <= 0) {
+          return { refunded: false, amount: 0 };
+        }
+
+        const user = state.users[scan.userId];
+        if (!user) {
+          throw new Error(`User not found: ${scan.userId} during refund`);
+        }
+
+        user.creditsRemaining += amountToRefund;
+        user.creditsUsedTotal = Math.max(0, user.creditsUsedTotal - amountToRefund);
+        scan.creditsRefunded = true;
+        scan.creditsRefundedAmount = amountToRefund;
+        scan.creditsUsed = 0;
+
+        return { refunded: true, amount: amountToRefund };
+      });
     }
   };
 
