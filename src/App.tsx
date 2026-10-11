@@ -250,17 +250,21 @@ export function App() {
       />
 
       {/* Responsive Footer */}
-      <footer className="border-t border-stone-200 bg-white py-6 sm:py-8 px-4 text-xs text-stone-500 mt-auto">
+      <footer className="border-t border-stone-200 bg-white py-8 sm:py-10 px-4 text-xs text-stone-500 mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-            <span className="font-bold text-stone-900">VideoRisk</span>
-            <span>·</span>
-            <span>Pre-Publish Video Risk Intelligence</span>
-            <span className="hidden sm:inline">·</span>
-            <span className="hidden sm:inline">Know the risk before you publish.</span>
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+              <span className="font-extrabold text-stone-900">VideoRisk</span>
+              <span>·</span>
+              <span className="font-medium text-stone-600">Pre-Publish Video Risk Intelligence</span>
+            </div>
+            <p className="font-bold text-stone-800">
+              Know the risk before you publish.
+            </p>
           </div>
-          <div className="text-[11px] text-stone-400 max-w-md sm:text-right">
-            VideoRisk provides policy risk intelligence and does not make final platform decisions.
+          <div className="text-[11px] text-stone-400 max-w-md sm:text-right space-y-1">
+            <p className="font-medium text-stone-600">Evidence first. Context that matters. Better-informed decisions.</p>
+            <p>VideoRisk provides policy risk intelligence and does not make final platform decisions or guarantee monetization outcomes.</p>
           </div>
         </div>
       </footer>
