@@ -128,6 +128,19 @@ export async function runSqliteStorageAndQueueTests() {
     const workerBetaClaim = await storage.queue.claimNextJob('worker_beta', 2000);
     assert(workerBetaClaim === null, 'Worker Beta cannot claim job while lease is actively held');
 
+    // Validate invalid lease timeout rejected
+    let invalidTimeoutCaught = false;
+    try {
+      await storage.queue.recoverStaleJobs(-100);
+    } catch {
+      invalidTimeoutCaught = true;
+    }
+    assert(invalidTimeoutCaught, 'Negative lease timeout rejected with validation error');
+
+    // Verify active lease is NOT reclaimed early
+    const activeUnexpiredCount = await storage.queue.recoverStaleJobs(60000);
+    assert(activeUnexpiredCount === 0, 'Active running job with valid lease is NOT prematurely reclaimed');
+
     // Stale job recovery test: Simulate lease expiration
     const expiredTimestamp = new Date(Date.now() - 5000).toISOString();
     storage.db.prepare('UPDATE job_queue SET locked_at = ? WHERE scan_id = ?').run(expiredTimestamp, scanJob.id);
@@ -144,10 +157,16 @@ export async function runSqliteStorageAndQueueTests() {
     assert(workerBetaClaimAfterRecovery !== null, 'Worker Beta successfully claimed recovered job');
     assert(workerBetaClaimAfterRecovery?.lockedBy === 'worker_beta', 'Worker Beta now holds lease lock');
 
-    // Complete job
-    await storage.queue.completeJob(workerBetaClaimAfterRecovery!.id);
+    // Worker Alpha (stale worker) attempts to complete the reclaimed job with its stale ownership
+    await storage.queue.completeJob(workerBetaClaimAfterRecovery!.id, 'worker_alpha');
+    const stillRunningJob = await storage.queue.getJobByScanId(scanJob.id);
+    assert(stillRunningJob?.status === 'RUNNING', 'Stale worker Alpha is fenced from completing job owned by Worker Beta');
+    assert(stillRunningJob?.lockedBy === 'worker_beta', 'Worker Beta still securely holds lease lock');
+
+    // Legitimate owner Worker Beta completes job
+    await storage.queue.completeJob(workerBetaClaimAfterRecovery!.id, 'worker_beta');
     const completedJob = await storage.queue.getJobByScanId(scanJob.id);
-    assert(completedJob?.status === 'COMPLETED', 'Job successfully completed and marked COMPLETED in queue');
+    assert(completedJob?.status === 'COMPLETED', 'Job successfully completed by legitimate Worker Beta and marked COMPLETED');
 
     // ---------------------------------------------------------
     // 4. Durability Across Restart
@@ -227,6 +246,57 @@ export async function runSqliteStorageAndQueueTests() {
 
     const migratedScanInSqlite = await reopenedStorage.scans.getScan('scan_legacy_501');
     assert(migratedScanInSqlite?.videoTitle === 'Legacy Archive Cut', 'Migrated scan retrieved from SQLite');
+
+    // ---------------------------------------------------------
+    // 6. Transaction Atomicity & Nested Savepoint Rollback
+    // ---------------------------------------------------------
+    console.log('\n[6. Transaction Boundaries & Nested Savepoints]');
+    
+    // Top-level failure rolls back entire transaction
+    let txFailed = false;
+    try {
+      await reopenedStorage.runTransaction(async db => {
+        db.prepare(`
+          INSERT INTO users (id, email, plan, credits_remaining, created_at)
+          VALUES ('user_fail_1', 'fail_rollback@videorisk.com', 'free', 10, ?)
+        `).run(new Date().toISOString());
+
+        throw new Error('Simulated mid-transaction failure');
+      });
+    } catch {
+      txFailed = true;
+    }
+    assert(txFailed, 'Transaction threw planned failure error');
+    const rolledBackUser = await reopenedStorage.users.getUser('user_fail_1');
+    assert(rolledBackUser === null, 'User created before failure was cleanly rolled back (no partial write)');
+
+    // Nested transaction savepoint rollback
+    await reopenedStorage.runTransaction(async outerDb => {
+      outerDb.prepare(`
+        INSERT INTO users (id, email, plan, credits_remaining, created_at)
+        VALUES ('user_nested_outer', 'outer_tx@videorisk.com', 'free', 25, ?)
+      `).run(new Date().toISOString());
+
+      let innerFailed = false;
+      try {
+        await reopenedStorage.runTransaction(async innerDb => {
+          innerDb.prepare(`
+            INSERT INTO users (id, email, plan, credits_remaining, created_at)
+            VALUES ('user_nested_inner', 'inner_tx@videorisk.com', 'free', 5, ?)
+          `).run(new Date().toISOString());
+
+          throw new Error('Simulated nested savepoint failure');
+        });
+      } catch {
+        innerFailed = true;
+      }
+      assert(innerFailed, 'Inner savepoint transaction threw error');
+    });
+
+    const outerUser = await reopenedStorage.users.getUser('user_nested_outer');
+    const innerUser = await reopenedStorage.users.getUser('user_nested_inner');
+    assert(outerUser !== null, 'Outer transaction successfully committed its modifications');
+    assert(innerUser === null, 'Inner failed transaction was safely rolled back by savepoint without aborting outer');
 
     await reopenedStorage.close();
     console.log('======================================================');

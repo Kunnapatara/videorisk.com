@@ -27,8 +27,8 @@ export interface IPasswordResetRepository {
 export interface IJobQueueRepository {
   enqueueJob(scanId: string, runAt?: string): Promise<JobQueueRecord>;
   claimNextJob(workerId: string, leaseDurationMs?: number): Promise<JobQueueRecord | null>;
-  completeJob(id: string): Promise<void>;
-  failJob(id: string, error: string, retryable: boolean, backoffMs?: number): Promise<void>;
+  completeJob(id: string, workerId?: string): Promise<void>;
+  failJob(id: string, error: string, retryable: boolean, backoffMs?: number, workerId?: string): Promise<void>;
   recoverStaleJobs(leaseTimeoutMs?: number): Promise<number>;
   getJobByScanId(scanId: string): Promise<JobQueueRecord | null>;
 }
@@ -869,7 +869,7 @@ export class InMemoryStorageRepository implements IStorageRepository {
       return rec;
     },
 
-    claimNextJob: async (workerId: string, leaseDurationMs: number = 60000): Promise<JobQueueRecord | null> => {
+    claimNextJob: async (workerId: string, _leaseDurationMs: number = 60000): Promise<JobQueueRecord | null> => {
       const now = new Date();
       const nowIso = now.toISOString();
 
@@ -879,19 +879,21 @@ export class InMemoryStorageRepository implements IStorageRepository {
 
       if (!candidate) return null;
 
-      const lockedUntil = new Date(now.getTime() + leaseDurationMs).toISOString();
       candidate.status = 'RUNNING';
       candidate.attempts += 1;
-      candidate.lockedAt = lockedUntil;
+      candidate.lockedAt = nowIso;
       candidate.lockedBy = workerId;
       candidate.updatedAt = nowIso;
       this.save();
       return candidate;
     },
 
-    completeJob: async (id: string): Promise<void> => {
+    completeJob: async (id: string, workerId?: string): Promise<void> => {
       const job = Object.values(this.state.jobQueue).find(j => j.id === id);
-      if (job) {
+      if (job && job.status === 'RUNNING') {
+        if (workerId && job.lockedBy !== workerId) {
+          return;
+        }
         job.status = 'COMPLETED';
         job.lockedAt = null;
         job.lockedBy = null;
@@ -900,9 +902,12 @@ export class InMemoryStorageRepository implements IStorageRepository {
       }
     },
 
-    failJob: async (id: string, error: string, retryable: boolean, backoffMs: number = 5000): Promise<void> => {
+    failJob: async (id: string, error: string, retryable: boolean, backoffMs: number = 5000, workerId?: string): Promise<void> => {
       const job = Object.values(this.state.jobQueue).find(j => j.id === id);
-      if (job) {
+      if (job && job.status === 'RUNNING') {
+        if (workerId && job.lockedBy !== workerId) {
+          return;
+        }
         const now = new Date();
         job.status = retryable ? 'RETRYABLE' : 'FAILED';
         job.runAt = new Date(now.getTime() + backoffMs).toISOString();
@@ -914,11 +919,18 @@ export class InMemoryStorageRepository implements IStorageRepository {
       }
     },
 
-    recoverStaleJobs: async (_leaseTimeoutMs: number = 60000): Promise<number> => {
+    recoverStaleJobs: async (leaseTimeoutMs: number = 60000): Promise<number> => {
+      if (leaseTimeoutMs === undefined || leaseTimeoutMs === null) {
+        leaseTimeoutMs = 60000;
+      }
+      if (typeof leaseTimeoutMs !== 'number' || !Number.isFinite(leaseTimeoutMs) || leaseTimeoutMs <= 0) {
+        throw new Error(`Invalid leaseTimeoutMs: must be a positive finite number (received: ${leaseTimeoutMs})`);
+      }
+      const cutoff = new Date(Date.now() - leaseTimeoutMs).toISOString();
       const now = new Date().toISOString();
       let recovered = 0;
       for (const job of Object.values(this.state.jobQueue)) {
-        if (job.status === 'RUNNING' && job.lockedAt && job.lockedAt <= now) {
+        if (job.status === 'RUNNING' && job.lockedAt && job.lockedAt <= cutoff) {
           job.status = 'RETRYABLE';
           job.lockedAt = null;
           job.lockedBy = null;

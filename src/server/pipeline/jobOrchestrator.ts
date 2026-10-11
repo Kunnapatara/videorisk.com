@@ -101,7 +101,7 @@ export class JobOrchestrator {
     const scanId = job.scanId;
     try {
       await this.processJob(scanId);
-      await storage.queue.completeJob(job.id);
+      await storage.queue.completeJob(job.id, this.workerId);
     } catch (err: any) {
       console.error(`[JobOrchestrator] Job ${job.id} for scan ${scanId} failed:`, err);
 
@@ -113,7 +113,7 @@ export class JobOrchestrator {
       if (!isTerminal) {
         // Retryable: backoff exponentially
         const backoffMs = Math.min(30000, 2000 * Math.pow(2, job.attempts));
-        await storage.queue.failJob(job.id, err.message, true, backoffMs);
+        await storage.queue.failJob(job.id, err.message, true, backoffMs, this.workerId);
       } else {
         // Terminal failure: refund credits idempotently and mark scan failed
         try {
@@ -132,7 +132,7 @@ export class JobOrchestrator {
             : 'We couldn’t complete this scan. Your video was not published or shared. Credits have been refunded. Please try again.'
         });
 
-        await storage.queue.failJob(job.id, err.message, false);
+        await storage.queue.failJob(job.id, err.message, false, 0, this.workerId);
       }
     }
   }

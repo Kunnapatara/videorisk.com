@@ -39,6 +39,7 @@ export interface MigrationRecord {
 export class SqliteStorageRepository implements IStorageRepository {
   public db: DatabaseSync;
   public dbPath: string;
+  private transactionDepth = 0;
 
   constructor(customPath?: string) {
     if (customPath) {
@@ -69,8 +70,17 @@ export class SqliteStorageRepository implements IStorageRepository {
     this.db.exec('PRAGMA busy_timeout = 5000;');
   }
 
-  public runTransaction<T>(operation: (context: any) => T | Promise<T>): Promise<T> {
-    this.db.exec('BEGIN IMMEDIATE;');
+  public async runTransaction<T>(operation: (context: any) => T | Promise<T>): Promise<T> {
+    const isTopLevel = this.transactionDepth === 0;
+    const savepointName = `sp_${this.transactionDepth}`;
+    this.transactionDepth++;
+
+    if (isTopLevel) {
+      this.db.exec('BEGIN IMMEDIATE;');
+    } else {
+      this.db.exec(`SAVEPOINT ${savepointName};`);
+    }
+
     const mutatedUsers = new Map<string, any>();
     const usersProxy = new Proxy({}, {
       get: (_target, prop: string) => {
@@ -183,27 +193,33 @@ export class SqliteStorageRepository implements IStorageRepository {
       }
     };
 
-    try {
-      const result = operation(txContext);
-      if (result instanceof Promise) {
-        return result
-          .then((res) => {
-            flushMutations();
-            this.db.exec('COMMIT;');
-            return res;
-          })
-          .catch((err) => {
-            this.db.exec('ROLLBACK;');
-            throw err;
-          });
-      } else {
-        flushMutations();
+    const commitTx = () => {
+      flushMutations();
+      if (isTopLevel) {
         this.db.exec('COMMIT;');
-        return Promise.resolve(result);
+      } else {
+        this.db.exec(`RELEASE ${savepointName};`);
       }
+      this.transactionDepth--;
+    };
+
+    const rollbackTx = (err: any): never => {
+      if (isTopLevel) {
+        this.db.exec('ROLLBACK;');
+      } else {
+        this.db.exec(`ROLLBACK TO ${savepointName}; RELEASE ${savepointName};`);
+      }
+      this.transactionDepth--;
+      throw err;
+    };
+
+    try {
+      const result = await operation(txContext);
+      commitTx();
+      return result;
     } catch (err) {
-      this.db.exec('ROLLBACK;');
-      return Promise.reject(err);
+      rollbackTx(err);
+      throw err;
     }
   }
 
@@ -935,7 +951,7 @@ export class SqliteStorageRepository implements IStorageRepository {
       return (await this.queue.getJobByScanId(scanId))!;
     },
 
-    claimNextJob: async (workerId: string, leaseDurationMs: number = 60000): Promise<JobQueueRecord | null> => {
+    claimNextJob: async (workerId: string, _leaseDurationMs: number = 60000): Promise<JobQueueRecord | null> => {
       let claimed: JobQueueRecord | null = null;
       await this.runTransaction(db => {
         const now = new Date();
@@ -952,8 +968,6 @@ export class SqliteStorageRepository implements IStorageRepository {
 
         if (!eligible) return;
 
-        const lockedUntil = new Date(now.getTime() + leaseDurationMs).toISOString();
-
         db.prepare(`
           UPDATE job_queue 
           SET status = 'RUNNING',
@@ -962,7 +976,7 @@ export class SqliteStorageRepository implements IStorageRepository {
               locked_by = ?,
               updated_at = ?
           WHERE id = ?
-        `).run(lockedUntil, workerId, nowIso, eligible.id);
+        `).run(nowIso, workerId, nowIso, eligible.id);
 
         claimed = {
           id: eligible.id,
@@ -971,7 +985,7 @@ export class SqliteStorageRepository implements IStorageRepository {
           attempts: eligible.attempts + 1,
           maxAttempts: eligible.max_attempts,
           runAt: eligible.run_at,
-          lockedAt: lockedUntil,
+          lockedAt: nowIso,
           lockedBy: workerId,
           lastError: eligible.last_error || null,
           createdAt: eligible.created_at,
@@ -981,48 +995,94 @@ export class SqliteStorageRepository implements IStorageRepository {
       return claimed;
     },
 
-    completeJob: async (id: string): Promise<void> => {
-      const now = new Date().toISOString();
-      this.db.prepare(`
-        UPDATE job_queue 
-        SET status = 'COMPLETED',
-            locked_at = NULL,
-            locked_by = NULL,
-            updated_at = ?
-        WHERE id = ?
-      `).run(now, id);
+    completeJob: async (id: string, workerId?: string): Promise<void> => {
+      await this.runTransaction(db => {
+        const now = new Date().toISOString();
+        if (workerId) {
+          db.prepare(`
+            UPDATE job_queue 
+            SET status = 'COMPLETED',
+                locked_at = NULL,
+                locked_by = NULL,
+                updated_at = ?
+            WHERE id = ? AND locked_by = ? AND status = 'RUNNING'
+          `).run(now, id, workerId);
+        } else {
+          db.prepare(`
+            UPDATE job_queue 
+            SET status = 'COMPLETED',
+                locked_at = NULL,
+                locked_by = NULL,
+                updated_at = ?
+            WHERE id = ? AND status = 'RUNNING'
+          `).run(now, id);
+        }
+      });
     },
 
-    failJob: async (id: string, error: string, retryable: boolean, backoffMs: number = 5000): Promise<void> => {
-      const now = new Date();
-      const nowIso = now.toISOString();
-      const nextRun = new Date(now.getTime() + backoffMs).toISOString();
-      const status = retryable ? 'RETRYABLE' : 'FAILED';
+    failJob: async (id: string, error: string, retryable: boolean, backoffMs: number = 5000, workerId?: string): Promise<void> => {
+      await this.runTransaction(db => {
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const nextRun = new Date(now.getTime() + backoffMs).toISOString();
+        const status = retryable ? 'RETRYABLE' : 'FAILED';
 
-      this.db.prepare(`
-        UPDATE job_queue 
-        SET status = ?,
-            run_at = ?,
-            locked_at = NULL,
-            locked_by = NULL,
-            last_error = ?,
-            updated_at = ?
-        WHERE id = ?
-      `).run(status, nextRun, error, nowIso, id);
+        if (workerId) {
+          db.prepare(`
+            UPDATE job_queue 
+            SET status = ?,
+                run_at = ?,
+                locked_at = NULL,
+                locked_by = NULL,
+                last_error = ?,
+                updated_at = ?
+            WHERE id = ? AND locked_by = ? AND status = 'RUNNING'
+          `).run(status, nextRun, error, nowIso, id, workerId);
+        } else {
+          db.prepare(`
+            UPDATE job_queue 
+            SET status = ?,
+                run_at = ?,
+                locked_at = NULL,
+                locked_by = NULL,
+                last_error = ?,
+                updated_at = ?
+            WHERE id = ? AND status = 'RUNNING'
+          `).run(status, nextRun, error, nowIso, id);
+        }
+      });
     },
 
     recoverStaleJobs: async (leaseTimeoutMs: number = 60000): Promise<number> => {
-      const now = new Date().toISOString();
-      // Any job RUNNING whose locked_at has expired (or locked_at <= now)
-      const res = this.db.prepare(`
-        UPDATE job_queue 
-        SET status = 'RETRYABLE',
-            locked_at = NULL,
-            locked_by = NULL,
-            updated_at = ?
-        WHERE status = 'RUNNING' AND locked_at IS NOT NULL AND locked_at <= ?
-      `).run(now, now);
-      return Number(res.changes);
+      if (leaseTimeoutMs === undefined || leaseTimeoutMs === null) {
+        leaseTimeoutMs = 60000;
+      }
+      if (typeof leaseTimeoutMs !== 'number' || !Number.isFinite(leaseTimeoutMs) || leaseTimeoutMs <= 0) {
+        throw new Error(`Invalid leaseTimeoutMs: must be a positive finite number (received: ${leaseTimeoutMs})`);
+      }
+      const MAX_LEASE_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+      if (leaseTimeoutMs > MAX_LEASE_TIMEOUT_MS) {
+        throw new Error(`leaseTimeoutMs exceeds maximum allowable timeout of 24 hours (received: ${leaseTimeoutMs})`);
+      }
+
+      return await this.runTransaction(db => {
+        const now = new Date();
+        const cutoff = new Date(now.getTime() - leaseTimeoutMs).toISOString();
+        const nowIso = now.toISOString();
+
+        const res = db.prepare(`
+          UPDATE job_queue 
+          SET status = 'RETRYABLE',
+              locked_at = NULL,
+              locked_by = NULL,
+              updated_at = ?
+          WHERE status = 'RUNNING' 
+            AND locked_at IS NOT NULL 
+            AND locked_at <= ?
+        `).run(nowIso, cutoff);
+
+        return Number(res.changes);
+      });
     },
 
     getJobByScanId: async (scanId: string): Promise<JobQueueRecord | null> => {
